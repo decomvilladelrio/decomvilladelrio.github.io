@@ -1338,7 +1338,7 @@ const TYPES = {
       };
       const SUPABASE_CONFIG = {
         url: "https://btgdhddlxqwezdzvngmg.supabase.co",
-        publishableKey: "sb_publishable_ZqqjaA95z6fwMSmQ8Rok9g_Wqhgc0ym",
+        publishableKey: "sb_publishable_eDbPEZm-oCqSa73Ap8tAyw_vm1qFIZV",
         storageBucket: "event-media",
         leaderBucket: "leader-submissions",
         driveFunction: "drive-upload"
