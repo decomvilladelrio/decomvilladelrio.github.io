@@ -1302,7 +1302,13 @@ const TYPES = {
       return `${weekdays[date.getDay()]} ${date.getDate()} de ${months[date.getMonth()]} de ${date.getFullYear()}`;
     }
     initIpucPlatform();
-    function initIpucPlatform() {
+    async function initIpucPlatform() {
+      await import("/js/member-profile.js?v=20260930-1");
+      await import("/js/decom-store.js?v=20260930-1");
+      await import("/js/decom-registration.js?v=20260930-1");
+      const membershipStyles = document.createElement("link");
+      membershipStyles.rel = "stylesheet"; membershipStyles.href = "/css/membership-decom.css?v=20260930-1";
+      document.head.append(membershipStyles);
       let deferredInstallPrompt = null;
       APP_STATE.events = APP_STATE.events || {};
       APP_STATE.announcements = APP_STATE.announcements || DEFAULT_ANNOUNCEMENTS;
@@ -1497,6 +1503,7 @@ const TYPES = {
         podcastSearch: "",
         memberSearch: "",
         memberStatusFilter: "todos",
+        memberSkillFilter: "todos",
         resourceItems: [],
         resourcesLoaded: false,
         resourcesLoading: false,
@@ -1618,13 +1625,13 @@ const TYPES = {
       window.addEventListener("beforeinstallprompt", event => {
         event.preventDefault();
         deferredInstallPrompt = event;
-        renderRoute();
+        if (parseRoute().name !== "membresia") renderRoute();
       });
       window.addEventListener("appinstalled", () => {
         deferredInstallPrompt = null;
-        renderRoute();
+        if (parseRoute().name !== "membresia") renderRoute();
       });
-      if ("serviceWorker" in navigator) navigator.serviceWorker.register("/service-worker.js?v=20260928-stream-1").catch(() => {});
+      if ("serviceWorker" in navigator) navigator.serviceWorker.register("/service-worker.js?v=20260930-decom-1").catch(() => {});
       setupSiteLoader();
       setupChurchMusic();
       loadDriveMusic();
@@ -1651,6 +1658,9 @@ const TYPES = {
         refreshAdminNav();
         setNavOpen(false);
         const route = parseRoute();
+        document.body.classList.toggle("decom-registration-mode", route.name === "membresia" && route.id === "decom");
+        const pageManifest = document.querySelector('link[rel="manifest"]');
+        if (pageManifest) pageManifest.href = route.name === "membresia" && route.id === "decom" ? "/membresia/decom/manifest.webmanifest" : "/manifest.webmanifest";
         if (route.name === "podcast") stopChurchMusic();
         document.body.classList.remove("stream-detail-open", "podcast-watching");
         if (route.name !== "podcast") document.querySelector(".stream-intro")?.remove();
@@ -1669,7 +1679,7 @@ const TYPES = {
         else if (route.name === "archivo") renderPage = renderArchivePage;
         else if (route.name === "recursos") renderPage = renderResourcesPage;
         else if (route.name === "ubicacion") renderPage = renderLocationPage;
-        else if (route.name === "membresia") renderPage = renderMembershipPage;
+        else if (route.name === "membresia") renderPage = route.id === "decom" ? renderDecomRegistration : renderMembershipPage;
         else if (route.name === "evento") renderPage = () => renderEventDetail(route.id);
         if (route.name === "admin") {
           if (isAdmin()) renderPage = renderAdminPage;
@@ -1679,6 +1689,10 @@ const TYPES = {
         }
         else if (route.name === "login") renderPage = renderLoginPage;
         renderPage();
+        // Membership entrypoints defer the existing Earth module until Home is opened.
+        if (route.name === "inicio" && navigator.onLine && !document.querySelector('script[src*="earth-hero.js"]')) {
+          void import("/js/earth-hero.js?v=20260913-earth-43").catch(() => {});
+        }
         animateRouteView();
       }
 
@@ -2331,7 +2345,15 @@ const TYPES = {
         member.svgUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
       }
 
-      function renderMembershipPage() {
+      function renderDecomRegistration() {
+        window.DecomRegistration.render({ root: view(), config: SUPABASE_CONFIG,
+          client: () => cloud.app, renderForm: () => { platform.memberCard = null; renderMembershipPage(true); },
+          navigate: path => { history.pushState({}, "", path); renderRoute(); },
+          showTalent: () => { platform.adminSection = "membresia"; history.pushState({}, "", "/admin"); renderRoute(); loadMembershipAdmin(); }
+        }).catch(() => { view().textContent = "No se pudo abrir el registro local. Recarga para reintentar; no se borraron los pendientes."; });
+      }
+
+      function renderMembershipPage(decomMode = false) {
         const registration = platform.memberCard;
         const card = registration?.hasChurchRole && !registration?.changeRequest ? registration : null;
         view().innerHTML = `<section class="page-head"><div><p class="eyebrow">Familia IPUC</p><h1>Registro de membresía</h1><p>Comparte tus datos con la administración de la iglesia para mantener actualizado el registro de membresía.</p></div></section>
@@ -2391,6 +2413,11 @@ const TYPES = {
           documentFields.hidden = true;
           documentFields.querySelectorAll("select, input").forEach(input => { input.disabled = true; });
           assignmentFields.insertAdjacentElement("afterend", documentFields);
+          const capabilityFields = document.createElement("section");
+          capabilityFields.className = "member-capability-fields";
+          window.MemberProfile.mount(capabilityFields);
+          documentFields.insertAdjacentElement("afterend", capabilityFields);
+          form.querySelector('[name="sensitiveDataConsent"]').nextElementSibling.innerHTML = `Autorizo de forma previa, expresa e informada a IPUC Villa del Río a tratar mis datos identificativos, fecha de nacimiento, información sobre bautismo y llenura del Espíritu Santo, mi vinculación como miembro y, si los proporciono, mi oficio, habilidades y áreas de interés, para gestionar mi membresía y orientar oportunidades de servicio. Estos datos solo serán consultados por administración autorizada. Esta autorización no es necesaria para asistir a los cultos. Podré conocer, actualizar, rectificar o solicitar la supresión de mis datos o revocar esta autorización escribiendo a <a href="mailto:decomvilladelrio@gmail.com">decomvilladelrio@gmail.com</a>.`;
           const syncRoleField = () => {
             const hasRole = form.querySelector('[name="hasChurchRole"]:checked')?.value === "si";
             if (!hasRole) assignmentList.querySelectorAll("[data-member-assignment]:not(:first-child)").forEach(row => row.remove());
@@ -2409,11 +2436,10 @@ const TYPES = {
               const remove = row.querySelector("[data-remove-member-assignment]");
               if (remove) remove.setAttribute("aria-label", `Quitar cargo o comité ${index + 1}`);
             });
-            documentFields.hidden = !hasRole;
+            documentFields.hidden = false;
             documentFields.querySelectorAll("select, input").forEach(input => {
-              input.disabled = !hasRole;
-              input.required = hasRole;
-              if (!hasRole) input.value = "";
+              input.disabled = false;
+              input.required = hasRole || decomMode;
             });
             assignmentFields.querySelector("[data-add-member-assignment]").disabled = !hasRole || assignmentList.children.length >= 20;
             assignmentFields.querySelector("[data-member-assignment-list]").querySelectorAll("[data-remove-member-assignment]").forEach(button => { button.disabled = !hasRole; });
@@ -2458,7 +2484,7 @@ const TYPES = {
             data.set("sensitiveDataConsent", String(form.elements.namedItem("sensitiveDataConsent").checked));
             data.set("photoConsent", String(photoConsent));
             data.set("attendanceConsent", String(form.elements.namedItem("attendanceConsent").checked));
-            data.set("hasChurchRole", String(hasRole)); data.set("consentVersion", "2026-09-v3");
+            data.set("hasChurchRole", String(hasRole)); data.set("consentVersion", "2026-09-v5");
             const assignments = hasRole ? [...assignmentList.querySelectorAll("[data-member-assignment]")].map(row => ({
               role: row.querySelector("[data-assignment-role]").value.trim(),
               committee: row.querySelector("[data-assignment-committee]").value === "__otro__" ? row.querySelector("[data-assignment-custom-name]").value.trim() : row.querySelector("[data-assignment-committee]").value,
@@ -2468,10 +2494,23 @@ const TYPES = {
             data.set("churchRole", assignments.map(item => item.role).join(" | "));
             data.set("churchCommittee", assignments.map(item => item.committee).join(" | "));
             data.set("churchCommitteeIsCustom", "false");
+            const selectedSkills = [...capabilityFields.querySelectorAll('[name="skills"]:checked')].map(input => input.value);
+            const customSkill = capabilityFields.querySelector('[name="skillsOther"]').value.trim();
+            const selectedInterests = [...capabilityFields.querySelectorAll('[name="supportInterests"]:checked')].map(input => input.value);
+            data.set("skills", JSON.stringify(selectedSkills));
+            data.set("skillsOther", customSkill);
+            data.set("occupation", capabilityFields.querySelector('[name="occupation"]').value.trim());
+            data.set("supportInterests", JSON.stringify(selectedInterests));
+            window.MemberProfile.serialize(form, data);
             data.set("guardianConsent", String(form.elements.namedItem("guardianConsent").checked));
             data.set("minorInformedConsent", String(form.elements.namedItem("minorInformedConsent").checked));
             data.set("isBaptized", String(form.querySelector('[name="isBaptized"]:checked')?.value === "true"));
             data.set("filledWithHolySpirit", String(form.querySelector('[name="filledWithHolySpirit"]:checked')?.value === "true"));
+            if (decomMode) {
+              try { await window.DecomRegistration.save(data, form); }
+              catch (error) { status.textContent = error.message || "No se pudo guardar. Conserva el formulario e intenta de nuevo."; submit.disabled = false; }
+              return;
+            }
             let photoDataUrl = "";
             let photoPreparationWarning = "";
             if (hasRole) {
@@ -2516,6 +2555,9 @@ const TYPES = {
               renderMembershipPage();
             } catch (error) { status.textContent = error.message || "No se pudo enviar el formulario. Inténtalo de nuevo."; submit.disabled = false; }
           });
+          syncRoleField();
+          window.MemberProfile.wizard(form);
+          if (decomMode) window.DecomRegistration.bindForm(form);
         }
         view().querySelectorAll("[data-download-member-card]").forEach(download => {
           if (!card) return;
@@ -2573,7 +2615,8 @@ const TYPES = {
 
       async function initializeCloud() {
         try {
-          const supabase = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm");
+          await import("/js/vendor/supabase-2.57.4.js");
+          const supabase = window.supabase;
           cloud.supabaseModule = supabase;
           cloud.app = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.publishableKey);
           cloud.auth = cloud.app;
@@ -2586,6 +2629,12 @@ const TYPES = {
           cloud.ready = true;
           cloud.driveReady = false;
           cloud.error = "";
+          if (!navigator.onLine && parseRoute().name === "membresia" && parseRoute().id === "decom") {
+            // The local vault does not need public feeds, realtime, or API retries.
+            cloud.app.auth.stopAutoRefresh();
+            window.addEventListener("online", () => initializeCloud(), { once: true });
+            return;
+          }
           cloud.storageReady = await checkSupabaseStorageAvailability(SUPABASE_CONFIG.storageBucket, "event-media");
           // El bucket privado requiere sesión para consultar su contenido. Su existencia
           // queda garantizada por la migración; el permiso real se valida al cargar.
@@ -3369,6 +3418,7 @@ const TYPES = {
       }
 
       async function signOutAdmin() {
+        window.DecomStore?.lock();
         if (cloud.auth && cloud.authMod) {
           await cloud.authMod.signOut(cloud.auth);
         }
@@ -4206,13 +4256,41 @@ const TYPES = {
         const memberStatusFilter = view().querySelector("[data-member-filter-status]");
         const memberResultCount = view().querySelector("[data-member-result-count]");
         const memberFilterEmpty = view().querySelector("[data-member-filter-empty]");
+        const memberTools = memberSearch?.closest(".member-directory-tools");
+        let memberSkillFilter = view().querySelector("[data-member-filter-skill]");
+        if (memberTools && !memberSkillFilter) {
+          const options = [...new Set((platform.members || []).flatMap(member => [...(Array.isArray(member.skills) ? member.skills : []), ...(Array.isArray(member.support_interests) ? member.support_interests : [])]))].sort((a, b) => a.localeCompare(b, "es"));
+          const label = document.createElement("label");
+          label.textContent = "Habilidad o área";
+          memberSkillFilter = document.createElement("select");
+          memberSkillFilter.dataset.memberFilterSkill = "";
+          memberSkillFilter.innerHTML = `<option value="todos">Todas las áreas</option>${options.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("")}`;
+          memberSkillFilter.value = options.includes(platform.memberSkillFilter) ? platform.memberSkillFilter : "todos";
+          label.append(memberSkillFilter);
+          memberTools.insertBefore(label, memberResultCount || null);
+        }
+        const talentFilters = [["Área de interés", "support_interests"], ["Disponibilidad", "availability"], ["Comité actual", "church_committee"], ["Cargo actual", "church_role"], ["Estudios", "education_level"]];
+        if (memberTools) {
+          memberSearch.placeholder = "Buscar habilidad, profesión o persona…";
+          memberTools.insertAdjacentHTML("beforebegin", '<h3>Talento y servicio</h3><p>Los intereses declarados no asignan cargos automáticamente.</p><a class="small-action" href="/membresia/decom/">Registro DECOM sin conexión</a>');
+          talentFilters.forEach(([title, key]) => {
+            const values = [...new Set(platform.members.flatMap(m => Array.isArray(m[key]) ? m[key] : String(m[key] || "").split(" | ")).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+            const label = document.createElement("label"); label.innerHTML = `${title}<select data-talent-filter="${key}"><option value="">Todas las opciones</option>${values.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("")}</select>`;
+            memberTools.insertBefore(label, memberResultCount || null);
+            label.querySelector("select").addEventListener("change", () => filterMembers());
+          });
+        }
         const filterMembers = () => {
           if (!memberSearch || !memberStatusFilter) return;
           const term = memberSearch.value.trim().toLocaleLowerCase("es");
           const status = memberStatusFilter.value;
+          const skill = memberSkillFilter?.value || "todos";
           const visibleMembers = new Set();
           view().querySelectorAll(".member-admin-row").forEach(row => {
-            const matches = (!term || row.textContent.toLocaleLowerCase("es").includes(term)) && (status === "todos" || row.querySelector(".member-status-chip")?.textContent.trim() === status);
+            const text = row.textContent.toLocaleLowerCase("es");
+            const member = platform.members.find(m => m.id === row.dataset.memberId);
+            const profileMatches = [...view().querySelectorAll("[data-talent-filter]")].every(select => !select.value || (Array.isArray(member?.[select.dataset.talentFilter]) ? member[select.dataset.talentFilter] : String(member?.[select.dataset.talentFilter] || "").split(" | ")).includes(select.value));
+            const matches = (!term || text.includes(term)) && (status === "todos" || row.querySelector(".member-status-chip")?.textContent.trim() === status) && (skill === "todos" || [...(member?.skills || []), ...(member?.support_interests || [])].includes(skill)) && profileMatches;
             row.hidden = !matches;
             if (matches) visibleMembers.add(row.dataset.memberId);
           });
@@ -4220,7 +4298,7 @@ const TYPES = {
             const count = folder.querySelectorAll(".member-admin-row:not([hidden])").length;
             const badge = folder.querySelector(":scope > summary [data-folder-count]");
             if (badge) badge.textContent = String(count);
-            folder.hidden = Boolean(term || status !== "todos") && count === 0;
+            folder.hidden = count === 0;
           });
           const visible = visibleMembers.size;
           if (memberResultCount) memberResultCount.textContent = `${visible} ${visible === 1 ? "persona" : "personas"}`;
@@ -4228,6 +4306,7 @@ const TYPES = {
         };
         memberSearch?.addEventListener("input", () => { platform.memberSearch = memberSearch.value; filterMembers(); });
         memberStatusFilter?.addEventListener("change", () => { platform.memberStatusFilter = memberStatusFilter.value; filterMembers(); });
+        memberSkillFilter?.addEventListener("change", () => { platform.memberSkillFilter = memberSkillFilter.value; filterMembers(); });
         filterMembers();
         view().querySelectorAll("[data-member-save-status]").forEach(button => {
           button.onclick = runAdminAction(async () => {
@@ -5192,7 +5271,8 @@ const TYPES = {
         const labels = { CC: "C.C.", TI: "T.I.", CE: "C.E.", PA: "Pasaporte", RC: "R.C.", PPT: "P.P.T." };
         const renderRequest = request => {
           const baptized = request.is_baptized ? "Sí" : "No";
-          return `<article class="member-change-request" data-change-request-id="${escapeHtml(request.id)}"><div class="member-change-request-photo">${request.photo_preview_url ? `<img src="${escapeHtml(request.photo_preview_url)}" alt="Foto enviada por ${escapeHtml(request.full_name)}">` : `<span>${escapeHtml(String(request.full_name || "?").slice(0, 1).toUpperCase())}</span>`}</div><div class="member-change-request-details"><strong>${escapeHtml(request.full_name)}</strong><small>${escapeHtml(labels[request.document_type] || request.document_type || "")} ${escapeHtml(request.document_number || "")} · ${escapeHtml(request.email)} · ${escapeHtml(request.phone)}</small><small>${escapeHtml(request.address)}</small><small>Nacimiento: ${escapeHtml(request.birth_date)} · Bautizado: ${baptized} · Lleno del Espíritu Santo: ${request.filled_with_holy_spirit ? "Sí" : "No"}</small>${request.guardian_consent ? `<small>Representante: ${escapeHtml(request.guardian_full_name || "No indicado")} · autorización confirmada · menor informado: ${request.minor_informed_consent ? "Sí" : "No"}</small>` : ""}<small>${request.has_church_role ? `Cargo: ${escapeHtml(request.church_role || "Por registrar")} · Comité: ${escapeHtml(request.church_committee || "Por clasificar")}` : "Sin cargo"}</small><small>Enviada: ${escapeHtml(new Date(request.created_at).toLocaleString("es-CO"))}</small></div><div class="member-change-request-actions">${request.photo_path ? `<button type="button" class="small-action" data-change-photo="${escapeHtml(request.photo_path)}">Ver foto</button>` : ""}<button type="button" class="primary-link" data-approve-member-change>Aprobar cambios</button><button type="button" class="small-action danger-action" data-reject-member-change>Rechazar</button></div></article>`;
+          const tags = values => (Array.isArray(values) ? values : []).map(value => `<span class="member-capability-tag">${escapeHtml(value)}</span>`).join("");
+          return `<article class="member-change-request" data-change-request-id="${escapeHtml(request.id)}"><div class="member-change-request-photo">${request.photo_preview_url ? `<img src="${escapeHtml(request.photo_preview_url)}" alt="Foto enviada por ${escapeHtml(request.full_name)}">` : `<span>${escapeHtml(String(request.full_name || "?").slice(0, 1).toUpperCase())}</span>`}</div><div class="member-change-request-details"><strong>${escapeHtml(request.full_name)}</strong><small>${escapeHtml(labels[request.document_type] || request.document_type || "")} ${escapeHtml(request.document_number || "")} · ${escapeHtml(request.email)} · ${escapeHtml(request.phone)}</small><small>${escapeHtml(request.address)}</small><small>Nacimiento: ${escapeHtml(request.birth_date)} · Bautizado: ${baptized} · Lleno del Espíritu Santo: ${request.filled_with_holy_spirit ? "Sí" : "No"}</small>${request.guardian_consent ? `<small>Representante: ${escapeHtml(request.guardian_full_name || "No indicado")} · autorización confirmada · menor informado: ${request.minor_informed_consent ? "Sí" : "No"}</small>` : ""}<small>${request.has_church_role ? `Cargo: ${escapeHtml(request.church_role || "Por registrar")} · Comité: ${escapeHtml(request.church_committee || "Por clasificar")}` : "Sin cargo"}</small>${request.occupation ? `<small>Oficio o profesión: ${escapeHtml(request.occupation)}</small>` : ""}${request.skills?.length ? `<div class="member-capability-tags"><small>Experiencia</small>${tags(request.skills)}</div>` : ""}${request.support_interests?.length ? `<div class="member-capability-tags"><small>Áreas de apoyo</small>${tags(request.support_interests)}</div>` : ""}${window.MemberProfile.facts(request)}<small>Enviada: ${escapeHtml(new Date(request.created_at).toLocaleString("es-CO"))}</small></div><div class="member-change-request-actions">${request.photo_path ? `<button type="button" class="small-action" data-change-photo="${escapeHtml(request.photo_path)}">Ver foto</button>` : ""}<button type="button" class="primary-link" data-approve-member-change>Aprobar cambios</button><button type="button" class="small-action danger-action" data-reject-member-change>Rechazar</button></div></article>`;
         };
         return `<section class="member-change-queue"><div class="section-title"><p class="eyebrow">Revisión administrativa · ${requests.length} pendiente${requests.length === 1 ? "" : "s"}</p><h3>Solicitudes de actualización</h3><p>Los datos oficiales permanecen iguales hasta que un administrador apruebe cada cambio.</p></div>${requests.map(renderRequest).join("")}</section>`;
       }
@@ -5231,9 +5311,11 @@ const TYPES = {
         const leadership = memberLeadershipSummary(member);
         const documentLabel = { CC: "C.C.", TI: "T.I.", CE: "C.E.", PA: "Pasaporte", RC: "R.C.", PPT: "P.P.T." }[member.document_type] || member.document_type || "Documento";
         const initial = escapeHtml(String(member.full_name || "?").trim().slice(0, 1).toLocaleUpperCase("es"));
+        const renderCapabilityTags = values => (Array.isArray(values) ? values : []).map(value => `<span class="member-capability-tag">${escapeHtml(value)}</span>`).join("");
+        const capabilityFacts = `${member.skills?.length ? `<span><small>Habilidades y conocimientos</small><strong class="member-capability-tags">${renderCapabilityTags(member.skills)}</strong></span>` : ""}${member.occupation ? `<span><small>Oficio o profesión</small><strong>${escapeHtml(member.occupation)}</strong></span>` : ""}${member.support_interests?.length ? `<span><small>Áreas donde desea apoyar</small><strong class="member-capability-tags">${renderCapabilityTags(member.support_interests)}</strong></span>` : ""}${window.MemberProfile.facts(member)}`;
         const roleDetails = member.has_church_role
-          ? `<span><small>Comité</small><strong>${escapeHtml(committee)}</strong></span><span><small>Cargo</small><strong>${escapeHtml(member.church_role || "Pendiente de registrar")}</strong></span>${member.document_number ? `<span><small>Documento</small><strong>${escapeHtml(documentLabel)} · ${escapeHtml(member.document_number)}</strong></span>` : ""}`
-          : `<span><small>Vinculación</small><strong>Miembro sin cargo</strong></span>`;
+          ? `<span><small>Comité</small><strong>${escapeHtml(committee)}</strong></span><span><small>Cargo</small><strong>${escapeHtml(member.church_role || "Pendiente de registrar")}</strong></span>${member.document_number ? `<span><small>Documento</small><strong>${escapeHtml(documentLabel)} · ${escapeHtml(member.document_number)}</strong></span>` : ""}${capabilityFacts}`
+          : `<span><small>Vinculación</small><strong>Miembro sin cargo</strong></span>${capabilityFacts}`;
         const baptismFact = member.is_baptized === true
           ? "Sí"
           : member.is_baptized === false ? "No" : "";
@@ -5324,10 +5406,10 @@ const TYPES = {
             const photo = photos.get(member.id);
             const committee = memberDirectoryCommittees(member).join(" · ");
             const leadership = memberLeadershipSummary(member).join(" · ");
-            const fields = [member.member_number, member.full_name, member.status, member.has_church_role ? "Sí" : "No", committee, leadership, member.church_role, member.document_number ? `${labels[member.document_type] || member.document_type} ${member.document_number}` : "", member.email, member.phone, member.address, member.birth_date, member.is_baptized === true ? "Sí" : member.is_baptized === false ? "No" : "", member.filled_with_holy_spirit ? "Sí" : "No", member.guardian_full_name, (platform.memberAttendance || []).filter(item => item.member_id === member.id).length, new Date(member.created_at).toLocaleDateString("es-CO")];
+            const fields = [member.member_number, member.full_name, member.status, member.has_church_role ? "Sí" : "No", committee, leadership, member.church_role, member.document_number ? `${labels[member.document_type] || member.document_type} ${member.document_number}` : "", member.email, member.phone, member.address, member.birth_date, member.is_baptized === true ? "Sí" : member.is_baptized === false ? "No" : "", member.filled_with_holy_spirit ? "Sí" : "No", member.skills?.join(" · "), member.occupation, member.support_interests?.join(" · "), member.education_level, member.current_situation?.join(" | "), member.experience_level, member.experience_notes, member.availability?.join(" | "), member.availability_notes, member.training_willingness, member.service_notes, member.guardian_full_name, (platform.memberAttendance || []).filter(item => item.member_id === member.id).length, new Date(member.created_at).toLocaleDateString("es-CO")];
             return `<tr><td>${photo ? `<img class="member-photo" src="${photo}" alt="Foto de ${escapeHtml(member.full_name)}">` : "Sin foto"}</td>${fields.map(value => `<td>${escapeHtml(value || "")}</td>`).join("")}</tr>`;
           }).join("");
-          const columns = ["Foto", "N.º miembro", "Nombre", "Estado", "Tiene cargo", "Comité(s)", "Liderazgo", "Cargo(s)", "Documento", "Correo", "Teléfono", "Dirección", "Nacimiento", "Bautizado", "Lleno del Espíritu Santo", "Representante", "Asistencias", "Fecha de registro"];
+          const columns = ["Foto", "N.º miembro", "Nombre", "Estado", "Tiene cargo", "Comité(s)", "Liderazgo", "Cargo(s)", "Documento", "Correo", "Teléfono", "Dirección", "Nacimiento", "Bautizado", "Lleno del Espíritu Santo", "Experiencia y habilidades", "Oficio o profesión", "Áreas de apoyo", "Nivel de estudios", "Situación actual", "Experiencia", "Detalle de experiencia", "Disponibilidad", "Horario adicional", "Capacitación", "Observaciones", "Representante", "Asistencias", "Fecha de registro"];
           const html = `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Directorio privado de membresía · IPUC Villa del Río</title><style>body{font:14px Arial,sans-serif;color:#172638;margin:24px}h1{color:#00338d;margin-bottom:4px}.note{color:#536578;margin:0 0 18px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{border:1px solid #cbd5df;padding:7px;text-align:left;vertical-align:middle}th{background:#eaf2f8;position:sticky;top:0}.member-photo{width:58px;height:72px;object-fit:cover;border-radius:5px}@media print{body{margin:8mm;font-size:9px}.table-wrap{overflow:visible}th{position:static}tr{break-inside:avoid}}</style><h1>IPUC Villa del Río · Directorio de membresía</h1><p class="note">Documento privado para uso administrativo. Contiene datos personales y fotografías. Generado ${new Date().toLocaleString("es-CO")}.</p><div class="table-wrap"><table><thead><tr>${columns.map(column => `<th>${column}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div></html>`;
           downloadPrivateFile(html, "text/html;charset=utf-8", "Directorio-privado-membresia-IPUC.html");
           if (status) status.textContent = `Listado con fotos descargado (${members.length} miembros). Mantén este archivo en un lugar privado.`;
@@ -5342,8 +5424,8 @@ const TYPES = {
         const members = platform.members || [];
         if (!members.length) throw new Error("Todavía no hay miembros para exportar.");
         const status = view().querySelector("[data-member-export-status]");
-        const columns = ["Número de miembro", "Nombre completo", "Estado", "Tiene cargo", "Comités", "Liderazgo por comité", "Cargos", "Tipo de documento", "Número de documento", "Correo", "Teléfono", "Dirección", "Fecha de nacimiento", "Bautizado", "Lleno del Espíritu Santo", "Representante", "Asistencias", "Fecha de registro", "Foto incluida en el directorio HTML"];
-        const rows = members.map(member => [member.member_number, member.full_name, member.status, member.has_church_role ? "Sí" : "No", memberDirectoryCommittees(member).join(" | "), memberLeadershipSummary(member).join(" | "), member.church_role, member.document_type, member.document_number, member.email, member.phone, member.address, member.birth_date, member.is_baptized === true ? "Sí" : member.is_baptized === false ? "No" : "", member.filled_with_holy_spirit ? "Sí" : "No", member.guardian_full_name, (platform.memberAttendance || []).filter(item => item.member_id === member.id).length, new Date(member.created_at).toLocaleDateString("es-CO"), member.photo_path ? "Sí" : "No"]);
+        const columns = ["Número de miembro", "Nombre completo", "Estado", "Tiene cargo", "Comités", "Liderazgo por comité", "Cargos", "Tipo de documento", "Número de documento", "Correo", "Teléfono", "Dirección", "Fecha de nacimiento", "Bautizado", "Lleno del Espíritu Santo", "Experiencia y habilidades", "Oficio o profesión", "Áreas de apoyo", "Nivel de estudios", "Situación actual", "Experiencia", "Detalle de experiencia", "Disponibilidad", "Horario adicional", "Capacitación", "Observaciones", "Representante", "Asistencias", "Fecha de registro", "Foto incluida en el directorio HTML"];
+        const rows = members.map(member => [member.member_number, member.full_name, member.status, member.has_church_role ? "Sí" : "No", memberDirectoryCommittees(member).join(" | "), memberLeadershipSummary(member).join(" | "), member.church_role, member.document_type, member.document_number, member.email, member.phone, member.address, member.birth_date, member.is_baptized === true ? "Sí" : member.is_baptized === false ? "No" : "", member.filled_with_holy_spirit ? "Sí" : "No", member.skills?.join(" | "), member.occupation, member.support_interests?.join(" | "), member.education_level, member.current_situation?.join(" | "), member.experience_level, member.experience_notes, member.availability?.join(" | "), member.availability_notes, member.training_willingness, member.service_notes, member.guardian_full_name, (platform.memberAttendance || []).filter(item => item.member_id === member.id).length, new Date(member.created_at).toLocaleDateString("es-CO"), member.photo_path ? "Sí" : "No"]);
         downloadPrivateFile(`\ufeff${[columns, ...rows].map(row => row.map(membershipCsvValue).join(",")).join("\r\n")}`, "text/csv;charset=utf-8", "Directorio-privado-membresia-IPUC.csv");
         if (status) status.textContent = `Listado Excel (CSV) descargado (${members.length} miembros). Para fotos, descarga también el directorio HTML.`;
       }
@@ -5921,6 +6003,7 @@ const TYPES = {
 
       let routeRenderQueued = false;
       function scheduleRouteRender() {
+        if (parseRoute().name === "membresia") return;
         if (routeRenderQueued) return;
         routeRenderQueued = true;
         const flush = () => {

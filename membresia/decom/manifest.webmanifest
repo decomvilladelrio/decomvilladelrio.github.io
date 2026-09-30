@@ -1,0 +1,13 @@
+{
+  "id": "/membresia/decom/",
+  "name": "IPUC Villa del Río · Registro DECOM",
+  "short_name": "Registro DECOM",
+  "description": "Registro autorizado de membresía, pendientes y sincronización.",
+  "start_url": "/membresia/decom/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f3f7fc",
+  "theme_color": "#183b5c",
+  "lang": "es-CO",
+  "icons": [{ "src": "/assets/favicon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }]
+}

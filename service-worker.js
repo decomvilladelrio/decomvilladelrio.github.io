@@ -1,44 +1,15 @@
-const CACHE_NAME = "ipuc-villa-del-rio-v110-podcast-stream";
-const APP_SHELL = ["/", "/podcast/", "/manifest.webmanifest", "/css/styles.css", "/css/modern.css", "/css/platform-runtime.css", "/css/admin.css", "/css/home-hero.css", "/css/podcast.css", "/js/app.js", "/assets/logo.png", "/assets/favicon.png", "/assets/ipuc-villa-del-rio-brand.png", "/assets/historias-que-edifican.png", "/assets/earth/Tierra_Hero_preview.png", "/assets/og.png"];
-
-self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
-  self.skipWaiting();
+const CACHE_NAME = "ipuc-villa-del-rio-v111-decom-offline";
+const SHELL = ["/", "/membresia/", "/membresia/decom/", "/manifest.webmanifest", "/membresia/decom/manifest.webmanifest", "/css/styles.css", "/css/modern.css", "/css/platform-runtime.css", "/css/admin.css", "/css/home-hero.css", "/css/podcast.css", "/css/resources.css", "/css/membership-decom.css", "/js/app.js", "/js/member-profile.js", "/js/decom-store.js", "/js/decom-registration.js", "/js/vendor/supabase-2.57.4.js", "/assets/logo.png", "/assets/favicon.png", "/assets/ipuc-villa-del-rio-brand.png", "/assets/historias-que-edifican.png", "/assets/earth/Tierra_Hero_preview.png"];
+const publicAsset = path => /^\/(?:css\/[\w.-]+\.css|js\/(?:[\w.-]+\.js|vendor\/supabase-2\.57\.4\.js))$/.test(path) || SHELL.includes(path);
+self.addEventListener("install", e => {e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(SHELL)));});
+// Never interrupt a form with a forced worker upgrade.
+self.addEventListener("message",e=>{if(e.data==="ACTIVATE_UPDATE")self.skipWaiting();});
+self.addEventListener("activate",e=>{e.waitUntil((async()=>{for(const k of await caches.keys())if(k.startsWith("ipuc-villa-del-rio-")&&k!==CACHE_NAME)await caches.delete(k);await self.clients.claim();})());});
+self.addEventListener("fetch",e=>{
+  const req=e.request,url=new URL(req.url);
+  if(req.method!=="GET"||url.origin!==self.location.origin)return;
+  if(req.mode==="navigate") {e.respondWith((async()=>{try{return await fetch(req);}catch{const cache=await caches.open(CACHE_NAME);return await cache.match(url.pathname.startsWith("/membresia/decom")?"/membresia/decom/":url.pathname.startsWith("/membresia")?"/membresia/":"/")||Response.error();}})());return;}
+  // Private photos, uploads and API/member responses never enter Cache Storage.
+  if(!publicAsset(url.pathname))return;
+  e.respondWith((async()=>{const cache=await caches.open(CACHE_NAME);try{const response=await fetch(req);if(response.ok&&response.type==="basic")await cache.put(url.pathname,response.clone());return response;}catch{return await cache.match(url.pathname)||Response.error();}})());
 });
-
-self.addEventListener("activate", event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))));
-  self.clients.claim();
-});
-
-self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET" || !event.request.url.startsWith(self.location.origin)) return;
-  const request = event.request;
-  const url = new URL(request.url);
-  if (request.destination === "video" || request.destination === "audio") return;
-  if (url.pathname.endsWith("/assets/earth/tierra-ipuc.glb")) return;
-  const isStatic = ["style", "script", "font", "manifest", "image"].includes(request.destination) || /\/assets\/(?:favicon|logo|og|historias|ipuc-villa-del-rio-brand)/.test(url.pathname);
-  const isCode = ["style", "script"].includes(request.destination);
-  event.respondWith(isStatic && !isCode ? cacheFirst(request) : networkFirst(request));
-});
-
-async function cacheFirst(request) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-  const response = await fetch(request);
-  if (response.ok) (await caches.open(CACHE_NAME)).put(request, response.clone());
-  return response;
-}
-
-async function networkFirst(request) {
-  try {
-    const response = await fetch(request);
-    if (response.ok && response.type === "basic") (await caches.open(CACHE_NAME)).put(request, response.clone());
-    return response;
-  } catch {
-    const cached = await caches.match(request);
-    if (cached) return cached;
-    if (request.mode === "navigate") return (await caches.match("/")) || Response.error();
-    return Response.error();
-  }
-}

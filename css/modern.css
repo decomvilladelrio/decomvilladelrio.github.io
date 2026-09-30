@@ -1074,6 +1074,20 @@ body.platform-body:has(.membership-form) .member-role-field { grid-column: 1 / -
 body.platform-body:has(.membership-form) .member-committee-field,
 body.platform-body:has(.membership-form) .member-custom-committee-field { grid-column: 1 / -1; }
 body.platform-body:has(.membership-form) .member-document-fields { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+body.platform-body:has(.membership-form) .member-capability-fields { grid-column: 1 / -1; display: grid; gap: 16px; min-width: 0; padding-top: 18px; border-top: 1px solid rgba(170,185,201,.18); }
+body.platform-body:has(.membership-form) .member-capability-intro { margin: 0; color: #aab9c9; font-size: .86rem; line-height: 1.5; }
+body.platform-body:has(.membership-form) .member-capability-group { min-width: 0; margin: 0; padding: 16px; border: 1px solid rgba(170,185,201,.2); border-radius: 12px; }
+body.platform-body:has(.membership-form) .member-capability-group legend { padding: 0 8px; color: #f7fbff; font-weight: 800; }
+body.platform-body:has(.membership-form) .member-capability-group legend span,
+body.platform-body:has(.membership-form) .member-occupation-field > span { color: #aab9c9; font-size: .82rem; font-weight: 500; }
+body.platform-body:has(.membership-form) .member-capability-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 8px; }
+body.platform-body:has(.membership-form) .member-capability-options label { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 8px 10px; border: 1px solid rgba(170,185,201,.16); border-radius: 9px; background: rgba(6,19,38,.55); cursor: pointer; }
+body.platform-body:has(.membership-form) .member-capability-options input { flex: 0 0 auto; width: 17px; height: 17px; margin: 0; accent-color: #009fda; }
+body.platform-body:has(.membership-form) .member-capability-other,
+body.platform-body:has(.membership-form) .member-occupation-field { display: grid; gap: 8px; color: #dce7f2; font-size: .9rem; font-weight: 700; }
+body.platform-body:has(.membership-form) .member-occupation-field { max-width: 620px; }
+body.platform-body:has(.membership-form) .member-capability-other input,
+body.platform-body:has(.membership-form) .member-occupation-field input { width: 100%; min-height: 44px; box-sizing: border-box; padding: 10px 12px; border: 1px solid rgba(170,185,201,.24); border-radius: 10px; color: #f7fbff; background: #04101f; font: inherit; }
 body.platform-body:has(.membership-form) .member-consent { display: flex; align-items: flex-start; gap: 10px; }
 body.platform-body:has(.membership-form) .member-consent input { flex: 0 0 auto; width: 18px; height: 18px; accent-color: #009fda; }
 body.platform-body:has(.membership-form) .member-consent { margin: 22px 0 14px; color: #aab9c9; font-size: .84rem; line-height: 1.55; }
