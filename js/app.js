@@ -1624,7 +1624,7 @@ const TYPES = {
         deferredInstallPrompt = null;
         renderRoute();
       });
-      if ("serviceWorker" in navigator) navigator.serviceWorker.register("/service-worker.js?v=20260925-membership-photo-fallback-1").catch(() => {});
+      if ("serviceWorker" in navigator) navigator.serviceWorker.register("/service-worker.js?v=20260928-stream-1").catch(() => {});
       setupSiteLoader();
       setupChurchMusic();
       loadDriveMusic();
@@ -1651,7 +1651,10 @@ const TYPES = {
         refreshAdminNav();
         setNavOpen(false);
         const route = parseRoute();
+        document.body.classList.remove("stream-detail-open", "podcast-watching");
+        if (route.name !== "podcast") document.querySelector(".stream-intro")?.remove();
         document.body.classList.toggle("public-inner-page", route.name !== "inicio" && !["admin", "login"].includes(route.name));
+        document.body.classList.toggle("podcast-mode", route.name === "podcast");
         const routeTitles = { inicio: "Inicio", calendario: "Cronograma", anuncios: "Anuncios", podcast: "Historias que Edifican", recursos: "Recursos", membresia: "Membresía", ubicacion: "Ubicación", admin: "Administración", login: "Iniciar sesión", eventos: "Eventos", archivo: "Archivo" };
         document.title = `${routeTitles[route.name] || "IPUC Villa del Río"} | IPUC Villa del Río`;
         trackLiveVisitorPage();
@@ -1704,7 +1707,7 @@ const TYPES = {
         const media = item?.media;
         if (!media) return `<div class="podcast-empty-media"><span>🎙️</span><small>Próximamente</small></div>`;
         if (media.type === "youtube") {
-          const source = youtubeEmbedUrl(media.url).replace("autoplay=1&mute=1", "autoplay=0&mute=0");
+          const source = youtubeEmbedUrl(media.url, { autoplay: true, mute: false });
           return source ? `<iframe src="${source}" title="${escapeHtml(item.title || "Historias que Edifican")}" loading="lazy" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>` : "";
         }
         // Drive entrega los videos con Content-Disposition: attachment. Ese
@@ -1712,7 +1715,7 @@ const TYPES = {
         // lo reproduzca dentro de la página. El visor de Drive sí soporta
         // streaming, controles y rangos para archivos grandes.
         if (isVideo(media) && driveFileId(media)) {
-          const source = `https://drive.google.com/file/d/${encodeURIComponent(driveFileId(media))}/preview`;
+          const source = `https://drive.google.com/file/d/${encodeURIComponent(driveFileId(media))}/preview?autoplay=1`;
           return `<iframe src="${source}" title="${escapeHtml(item.title || "Historias que Edifican")}" loading="lazy" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
         }
         if (isVideo(media)) return `<video controls playsinline preload="metadata" ${item.cover && assetSource(item.cover, "display") ? `poster="${escapeHtml(assetSource(item.cover, "display"))}"` : ""} src="${escapeHtml(assetSource(media))}"></video>`;
@@ -1721,37 +1724,121 @@ const TYPES = {
       }
 
       function renderPodcastPage() {
-        const activeCategory = platform.podcastCategory || "Todos";
-        const searchTerm = String(platform.podcastSearch || "").trim().toLocaleLowerCase("es");
-        const all = (APP_STATE.podcasts || []).filter(item => item.published !== false).sort((a, b) => Number(Boolean(b.featured)) - Number(Boolean(a.featured)) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
-        const items = all.filter(item => {
-          const matchesCategory = activeCategory === "Todos" || item.category === activeCategory;
-          const searchable = `${item.title || ""} ${item.description || ""} ${item.category || ""}`.toLocaleLowerCase("es");
-          return matchesCategory && (!searchTerm || searchable.includes(searchTerm));
-        });
-        view().innerHTML = `
-          <section class="page-head glass podcast-hero"><div><p class="eyebrow">Historias de fe</p><h1>Historias que Edifican</h1><p>Testimonios, milagros, predicaciones especiales y experiencias de fe para escuchar y compartir.</p></div><span class="podcast-hero-mark"><img src="/assets/historias-que-edifican.png" alt="Historias que Edifican"></span></section>
-          <section class="podcast-browser" aria-label="Buscar y filtrar Historias que Edifican"><label class="podcast-search"><span>Buscar testimonios y predicaciones</span><input type="search" data-podcast-search placeholder="Escribe un título o palabra clave" value="${escapeHtml(platform.podcastSearch || "")}"></label><div class="podcast-filters" aria-label="Categorías de Historias que Edifican">${["Todos", ...PODCAST_CATEGORIES].map(category => `<button type="button" class="podcast-filter ${activeCategory === category ? "active" : ""}" data-podcast-category="${escapeHtml(category)}">${escapeHtml(category)}</button>`).join("")}</div><p class="podcast-result-count" data-podcast-result-count aria-live="polite">${items.length} ${items.length === 1 ? "historia" : "historias"}</p></section>
-          <section class="podcast-grid">${items.map(item => `<article class="podcast-card glass ${item.featured ? "is-featured" : ""}"><div class="podcast-media${item.cover && assetSource(item.cover, "display") ? " has-cover" : ""}"${item.cover && assetSource(item.cover, "display") ? ` style="background-image:linear-gradient(145deg,rgba(0,51,141,.72),rgba(8,123,136,.72)),url('${escapeHtml(assetSource(item.cover, "display"))}')"` : ""}>${podcastMediaMarkup(item)}</div><div class="podcast-copy"><div class="podcast-card-head"><span class="status-chip">${escapeHtml(item.category || "Experiencias de fe")}</span>${item.featured ? `<span class="podcast-featured">Destacado</span>` : ""}</div><h2>${escapeHtml(item.title || "Historias que Edifican")}</h2><p>${escapeHtml(item.description || "Una historia que edifica nuestra fe.")}</p><small>${item.createdAt ? `Publicado ${escapeHtml(formatDateShort(String(item.createdAt).slice(0, 10)))}` : "Contenido IPUC Villa del Río"}</small></div></article>`).join("") || emptyText(searchTerm ? "No hay historias que coincidan con esta búsqueda." : activeCategory === "Todos" ? "Aún no hay episodios publicados. Pronto encontrarás aquí testimonios y predicaciones de la iglesia." : "No hay episodios en esta categoría.")}</section>`;
-        const search = view().querySelector("[data-podcast-search]");
-        search.oninput = () => {
-          platform.podcastSearch = search.value;
-          const term = search.value.trim().toLocaleLowerCase("es");
-          let visible = 0;
-          view().querySelectorAll(".podcast-card").forEach(card => {
-            const matches = !term || card.textContent.toLocaleLowerCase("es").includes(term);
-            card.hidden = !matches;
-            if (matches) visible++;
-          });
-          const count = view().querySelector("[data-podcast-result-count]");
-          if (count) count.textContent = `${visible} ${visible === 1 ? "historia" : "historias"}`;
+        const localPreview = Array.isArray(window.IPUC_LOCAL_PODCAST_PREVIEW) ? window.IPUC_LOCAL_PODCAST_PREVIEW : [];
+        const existingPodcastIds = new Set((APP_STATE.podcasts || []).map(item => String(item.id)));
+        const all = [...(APP_STATE.podcasts || []), ...localPreview.filter(item => !existingPodcastIds.has(String(item.id)))]
+          .filter(item => item.published !== false)
+          .sort((a, b) => Number(Boolean(b.localPreview)) - Number(Boolean(a.localPreview)) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+        const featured = all.find(item => item.localPreviewFeatured) || all.find(item => item.featured) || all[0];
+        const categories = [...new Set(all.map(item => String(item.category || "").trim()).filter(Boolean))];
+        const localTestimonials = all.filter(item => item.localPreview);
+        const documentary = item => /documental|pel[ií]cula|largometraje/i.test([item?.title, item?.description, item?.media?.name].filter(Boolean).join(" "));
+        const attr = value => escapeHtml(value).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+        const imageFor = item => {
+          const cover = item?.cover && assetSource(item.cover, "display");
+          const driveId = item?.media && driveFileId(item.media);
+          return cover || (driveId ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(driveId)}&sz=w1600` : "");
         };
-        view().querySelectorAll("[data-podcast-category]").forEach(button => {
-          button.onclick = () => { platform.podcastCategory = button.dataset.podcastCategory || "Todos"; renderPodcastPage(); };
+        const dateFor = item => item.createdAt ? formatDateShort(String(item.createdAt).slice(0, 10)) : "";
+        const card = item => {
+          const image = imageFor(item);
+          return `<button class="stream-card" type="button" data-podcast-open="${attr(item.id)}" data-autoplay="${item.media ? "true" : "false"}" aria-label="${item.media ? "Reproducir" : "Ver"} ${attr(item.title || "historia")}">
+            <span class="stream-card-art">${image ? `<img src="${attr(image)}" alt="" loading="lazy" decoding="async">` : `<img class="stream-card-logo" src="/assets/historias-que-edifican.png" alt="" loading="lazy" decoding="async">`}${item.duration ? `<span class="stream-card-duration">${escapeHtml(item.duration)}</span>` : ""}<span class="stream-card-play" aria-hidden="true">▶</span></span>
+            <span class="stream-card-title">${escapeHtml(item.title || "Historias que Edifican")}</span>
+            <span class="stream-card-meta">${[item.category, dateFor(item)].filter(Boolean).map(escapeHtml).join(" · ")}</span>
+          </button>`;
+        };
+        const row = (title, items, id) => !items.length ? "" : `<section class="stream-row" id="${id}" aria-labelledby="${id}-title"><div class="stream-row-head"><h2 id="${id}-title">${title}</h2>${items.length > 4 ? `<div class="stream-row-actions"><button type="button" data-rail="${id}" data-direction="-1" aria-label="Desplazar ${title} a la izquierda">‹</button><button type="button" data-rail="${id}" data-direction="1" aria-label="Desplazar ${title} a la derecha">›</button></div>` : ""}</div><div class="stream-rail" data-rail-id="${id}">${items.map(card).join("")}</div></section>`;
+        const heroImage = imageFor(featured);
+        view().innerHTML = `<div class="podcast-stream">
+          <header class="stream-nav" data-stream-nav><a class="stream-brand" href="#stream-top" aria-label="Historias que Edifican, inicio"><img src="/assets/historias-que-edifican.png" alt="Historias que Edifican"></a>
+            <nav class="stream-links" aria-label="Navegación de Historias que Edifican"><a href="#stream-top" aria-current="page">Inicio</a><a href="#stream-all">Catálogo</a></nav>
+            <button class="stream-search-toggle" type="button" data-stream-search-toggle aria-label="Buscar historias" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 5 5"></path></svg><span>Buscar</span></button>
+            <a class="stream-back" href="/">Volver a IPUC <span aria-hidden="true">↗</span></a>
+            <details class="stream-mobile-menu"><summary aria-label="Abrir menú de historias">☰</summary><nav aria-label="Navegación móvil"><a href="#stream-top">Inicio</a><a href="#stream-all">Catálogo</a><a href="/">Volver a IPUC</a></nav></details>
+          </header>
+          <div class="stream-search-panel" data-stream-search-panel hidden><label for="streamSearch">Buscar historias</label><input id="streamSearch" type="search" data-podcast-search placeholder="Título, tema o descripción" value="${attr(platform.podcastSearch || "")}" autocomplete="off"><span data-stream-count aria-live="polite"></span></div>
+          <section class="stream-hero" id="stream-top" aria-labelledby="stream-title">${heroImage ? `<div class="stream-hero-backdrop" style="background-image:url('${attr(heroImage)}')"></div><img class="stream-hero-image" src="${attr(heroImage)}" alt="" decoding="async">` : ""}
+            <div class="stream-hero-content"><p class="stream-kicker">${featured ? (documentary(featured) ? "DOCUMENTAL DESTACADO" : /testimonio/i.test(featured.category || "") ? "TESTIMONIO DESTACADO" : "HISTORIA DESTACADA") : "IPUC VILLA DEL RÍO"}</p><h1 id="stream-title">${escapeHtml(featured?.title || "Historias que Edifican")}</h1><p class="stream-hero-description">${escapeHtml(featured?.description || "Historias de fe para ver, escuchar y compartir.")}</p>
+              ${featured ? `<p class="stream-hero-meta">${[featured.category, dateFor(featured), featured.duration].filter(Boolean).map(escapeHtml).join(" <span aria-hidden=\"true\">·</span> ")}</p><div class="stream-hero-actions">${featured.media ? `<button class="stream-primary" type="button" data-podcast-open="${attr(featured.id)}" data-autoplay="true"><span aria-hidden="true">▶</span> Reproducir</button>` : ""}<button class="stream-secondary" type="button" data-podcast-open="${attr(featured.id)}">Más información</button></div>` : ""}
+            </div><div class="stream-watch" data-stream-watch hidden><button class="stream-watch-back" type="button" data-stream-stop aria-label="Volver al catálogo">← <span>Volver</span></button><div class="stream-watch-media" data-stream-watch-media></div></div></section>
+          <section class="stream-catalog" id="stream-catalog" aria-label="Catálogo de historias">${all.length ? `${localTestimonials.length ? row("Testimonios", localTestimonials, "stream-testimonials") : all.length > 1 ? row("Últimos estrenos", all.slice(0, 12), "stream-latest") : ""}${all.some(item => item.featured) && all.length > 1 ? row("Historias destacadas", all.filter(item => item.featured), "stream-featured") : ""}${row(all.length === 1 ? (documentary(all[0]) ? "Documentales" : "Historias") : "Todo el contenido", all, "stream-all")}${categories.length > 1 ? `<div class="stream-categories" aria-label="Filtrar por categoría"><button type="button" class="active" data-podcast-category="Todos">Todos</button>${categories.map(category => `<button type="button" data-podcast-category="${attr(category)}">${escapeHtml(category)}</button>`).join("")}</div>` : ""}` : `<div class="stream-empty"><img src="/assets/historias-que-edifican.png" alt=""><h2>Próximamente</h2><p>Las historias publicadas aparecerán aquí.</p></div>`}<p class="stream-no-results" data-stream-no-results hidden>No encontramos historias con esa búsqueda.</p></section>
+          <dialog class="stream-dialog" data-stream-dialog aria-label="Información de la historia"><button class="stream-dialog-close" type="button" data-stream-close aria-label="Cerrar información">×</button><div data-stream-detail></div></dialog>
+        </div>`;
+        const root = view().querySelector(".podcast-stream");
+        const dialog = root.querySelector("[data-stream-dialog]");
+        const detail = root.querySelector("[data-stream-detail]");
+        const hero = root.querySelector(".stream-hero");
+        const watch = root.querySelector("[data-stream-watch]");
+        const stopPlayback = () => {
+          watch.querySelector("[data-stream-watch-media]").replaceChildren();
+          watch.hidden = true;
+          hero.classList.remove("is-playing");
+          document.body.classList.remove("podcast-watching");
+          root.querySelector(".stream-hero-actions [data-autoplay]")?.focus({ preventScroll: true });
+        };
+        const playEpisode = item => {
+          if (!item.media) return;
+          if (dialog.open) dialog.close();
+          watch.querySelector("[data-stream-watch-media]").innerHTML = podcastMediaMarkup(item);
+          watch.setAttribute("aria-label", `Reproduciendo ${item.title || "Historia que Edifica"}`);
+          watch.hidden = false;
+          hero.classList.add("is-playing");
+          document.body.classList.add("podcast-watching");
+          window.scrollTo({ top: 0, behavior: "instant" });
+          watch.querySelector("audio,video")?.play().catch(() => {});
+          watch.querySelector("[data-stream-stop]").focus({ preventScroll: true });
+        };
+        const openEpisode = item => {
+          const image = imageFor(item);
+          const related = all.filter(entry => String(entry.id) !== String(item.id)).slice(0, 8);
+          detail.innerHTML = `<div class="stream-detail-art">${image ? `<img src="${attr(image)}" alt="">` : `<img class="stream-detail-logo" src="/assets/historias-que-edifican.png" alt="">`}</div><div class="stream-detail-copy"><p class="stream-kicker">${documentary(item) ? "DOCUMENTAL" : "HISTORIAS QUE EDIFICAN"}</p><h2>${escapeHtml(item.title || "Historias que Edifican")}</h2><p class="stream-detail-meta">${[item.category, dateFor(item), item.duration, item.guest].filter(Boolean).map(escapeHtml).join(" · ")}</p><p>${escapeHtml(item.description || "")}</p>${item.media ? `<button class="stream-primary" type="button" data-stream-play>▶ Reproducir</button>` : ""}</div>${related.length ? `<div class="stream-related">${row("También puedes ver", related, "stream-related")}</div>` : ""}`;
+          if (!dialog.open) dialog.showModal();
+          document.body.classList.add("stream-detail-open");
+          const playButton = detail.querySelector("[data-stream-play]");
+          if (playButton) playButton.onclick = () => playEpisode(item);
+        };
+        root.addEventListener("click", event => {
+          const opener = event.target.closest("[data-podcast-open]");
+          if (opener) { const item = all.find(entry => String(entry.id) === opener.dataset.podcastOpen); if (item) opener.dataset.autoplay === "true" ? playEpisode(item) : openEpisode(item); return; }
+          if (event.target.closest("[data-stream-stop]")) { stopPlayback(); return; }
+          if (event.target.closest("[data-stream-close]")) dialog.close();
+          const railButton = event.target.closest("[data-rail]");
+          if (railButton) root.querySelector(`[data-rail-id="${railButton.dataset.rail}"]`)?.scrollBy({ left: Number(railButton.dataset.direction) * 620, behavior: "smooth" });
+          const searchButton = event.target.closest("[data-stream-search-toggle]");
+          if (searchButton) { const panel = root.querySelector("[data-stream-search-panel]"); panel.hidden = !panel.hidden; searchButton.setAttribute("aria-expanded", String(!panel.hidden)); if (!panel.hidden) panel.querySelector("input")?.focus(); }
+          const categoryButton = event.target.closest("[data-podcast-category]");
+          if (categoryButton) { platform.podcastCategory = categoryButton.dataset.podcastCategory; root.querySelectorAll("[data-podcast-category]").forEach(button => button.classList.toggle("active", button === categoryButton)); filterCards(); }
+          if (event.target.closest(".stream-mobile-menu a")) root.querySelector(".stream-mobile-menu").open = false;
         });
-        view().querySelectorAll("audio, video").forEach(media => media.addEventListener("play", () => {
-          view().querySelectorAll("audio, video").forEach(other => { if (other !== media) other.pause(); });
-        }));
+        dialog.addEventListener("close", () => { detail.innerHTML = ""; document.body.classList.remove("stream-detail-open"); });
+        dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
+        root.addEventListener("keydown", event => { if (event.key === "Escape") { root.querySelector(".stream-mobile-menu").open = false; if (!watch.hidden) stopPlayback(); } });
+        const filterCards = () => {
+          const term = String(platform.podcastSearch || "").trim().toLocaleLowerCase("es");
+          const category = platform.podcastCategory || "Todos";
+          let visible = 0;
+          root.querySelectorAll(".stream-rail .stream-card").forEach(button => {
+            const item = all.find(entry => String(entry.id) === button.dataset.podcastOpen);
+            const text = `${item?.title || ""} ${item?.description || ""} ${item?.category || ""} ${item?.guest || ""}`.toLocaleLowerCase("es");
+            button.hidden = (category !== "Todos" && item?.category !== category) || (term && !text.includes(term));
+            if (!button.hidden) visible++;
+          });
+          root.querySelectorAll(".stream-row").forEach(section => { section.hidden = !section.querySelector(".stream-card:not([hidden])"); });
+          root.querySelector("[data-stream-no-results]").hidden = visible > 0 || !all.length;
+          root.querySelector("[data-stream-count]").textContent = `${new Set([...root.querySelectorAll('.stream-card:not([hidden])')].map(card => card.dataset.podcastOpen)).size} resultados`;
+        };
+        root.querySelector("[data-podcast-search]").addEventListener("input", event => { platform.podcastSearch = event.target.value; filterCards(); });
+        filterCards();
+        if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && !sessionStorage.getItem("ipuc-podcast-intro-seen")) {
+          sessionStorage.setItem("ipuc-podcast-intro-seen", "1");
+          const intro = document.createElement("div");
+          intro.className = "stream-intro";
+          intro.innerHTML = `<img src="/assets/historias-que-edifican.png" alt="Historias que Edifican"><button type="button" aria-label="Saltar introducción">Saltar intro</button>`;
+          document.body.append(intro);
+          let timer = window.setTimeout(() => { intro.classList.add("is-done"); window.setTimeout(() => intro.remove(), 550); }, 2300);
+          intro.querySelector("button").onclick = () => { clearTimeout(timer); intro.remove(); };
+        }
       }
 
       function renderArchivePage() {
@@ -1760,43 +1847,110 @@ const TYPES = {
       }
 
       function renderResourcesPage() {
-        const path = platform.resourcePath || "";
-        const needle = platform.resourceSearch.trim().toLocaleLowerCase("es");
-        const entries = resourceEntriesAtPath(path);
-        const searchResults = needle ? platform.resourceItems.filter(item => `${item.name} ${item.category} ${item.folder} ${item.relativePath}`.toLocaleLowerCase("es").includes(needle)) : [];
-        const folderCount = entries.folders.length;
-        const fileCount = entries.files.length;
-        const pathParts = resourcePathParts(path);
-        const currentLabel = path ? resourceCategoryLabel(pathParts[pathParts.length - 1]) : "Carpetas principales";
-        const content = needle
-          ? searchResults.map(resourceCard).join("") || emptyText("No encontramos recursos con esa búsqueda.")
-          : `${entries.folders.map(resourceFolderCard).join("")}${entries.files.map(resourceCard).join("")}${!folderCount && !fileCount ? emptyText("Esta carpeta no contiene archivos.") : ""}`;
-        view().innerHTML = `
-          <section class="page-head glass resource-hero">
-            <div><p class="eyebrow">DECOM · Biblioteca oficial</p><h1>Banco de recursos IPUC</h1><p>Encuentra logos, manuales, piezas gráficas y materiales oficiales para apoyar la comunicación de la Iglesia.</p></div>
-            <div class="resource-hero-actions"><a class="small-action" href="https://ipuc.org.co/descargas-ipuc#graficos-ipuc" target="_blank" rel="noopener">Ver banco oficial</a><a class="small-action" href="${DRIVE_RESOURCE_FOLDER_URL}" target="_blank" rel="noopener">Abrir carpeta bíblica</a></div>
-          </section>
-          <section class="resource-note glass"><span class="resource-note-icon">✓</span><p><strong>Recursos oficiales IPUC</strong><small>Cada archivo muestra una vista previa cuando el formato lo permite. Usa “Descargar” para guardarlo directamente en tu dispositivo.</small></p></section>
-          <section class="resource-toolbar glass" aria-label="Buscar recursos">
-            <label class="resource-search"><span>Buscar en toda la biblioteca</span><input id="resourceSearch" type="search" placeholder="Buscar por nombre o carpeta" value="${escapeHtml(platform.resourceSearch)}"></label>
-            ${platform.resourcesLoaded ? `<div class="resource-navigation">${path && !needle ? `<button class="resource-back" type="button" data-resource-path="${escapeHtml(resourceParentPath(path))}"><span aria-hidden="true">←</span> Volver a ${resourceParentPath(path) ? escapeHtml(resourceCategoryLabel(resourcePathParts(resourceParentPath(path)).pop())) : "la biblioteca"}</button>` : ""}${resourceBreadcrumb(path)}</div>` : ""}
-          </section>
-          <section class="resource-results-head"><div><p class="eyebrow">${needle ? "Resultados" : "Ubicación actual"}</p><h2>${platform.resourcesLoaded ? (needle ? `${searchResults.length} recursos encontrados` : currentLabel) : "Cargando recursos oficiales"}</h2></div>${platform.resourcesLoaded && !needle ? `<span>${folderCount} carpetas · ${fileCount} archivos</span>` : platform.resourcesLoaded && needle ? `<span>Buscando en toda la biblioteca</span>` : ""}</section>
-          <section class="resource-grid" id="resourceGrid">${platform.resourcesError ? `<div class="resource-error">No se pudo cargar el banco ahora. <button type="button" class="small-action" data-resource-retry>Reintentar</button></div>` : platform.resourcesLoading ? `<div class="resource-loading"><span></span><span></span><span></span><p>Consultando la biblioteca oficial…</p></div>` : content}</section>
-        `;
-         const search = view().querySelector("#resourceSearch");
-         if (search) search.oninput = event => { platform.resourceSearch = event.target.value; renderResourcesPage(); };
-        view().querySelectorAll("[data-resource-download]").forEach(link => {
-          link.onclick = event => {
-            event.preventDefault();
-            const item = platform.resourceItems.find(resource => resource.key === link.dataset.resourceDownload);
-            if (item) downloadResource(item, link);
-          };
+        const params = new URLSearchParams(location.search);
+        platform.resourceSearch = params.get("buscar") ?? platform.resourceSearch ?? "";
+        platform.resourceCategory = params.get("categoria") ?? platform.resourceCategory ?? "Todos";
+        platform.resourceType = params.get("tipo") ?? platform.resourceType ?? "Todos";
+        platform.resourceSort = params.get("orden") ?? platform.resourceSort ?? "recientes";
+        platform.resourceLimit = platform.resourceLimit || 24;
+        const items = platform.resourceItems || [];
+        const categories = [...new Set(items.map(item => item.category || "Otros"))]
+          .map(name => ({ name, count: items.filter(item => (item.category || "Otros") === name).length }))
+          .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "es"));
+        const formats = [...new Set(items.map(item => item.kind?.extension).filter(Boolean))].sort();
+        const latest = items.filter(item => item.updatedAt).slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 8);
+        const activeFilters = platform.resourceSearch || platform.resourceCategory !== "Todos" || platform.resourceType !== "Todos";
+        const heroImage = items.find(resourceIsImage);
+        const categoryIcon = name => {
+          const value = String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es");
+          const paths = value.includes("biblia") || value.includes("estudio") ? `<path d="M3 5.5c3-1 6-.5 9 1.2v13c-3-1.7-6-2.2-9-1.2zM21 5.5c-3-1-6-.5-9 1.2v13c3-1.7 6-2.2 9-1.2z"/>` : value.includes("video") ? `<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/>` : value.includes("audio") || value.includes("musica") ? `<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>` : value.includes("disen") || value.includes("imagen") ? `<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/>` : value.includes("present") || value.includes("plant") ? `<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4M8 9h8m-8 4h5"/>` : `<path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h7m-7 4h7"/>`;
+          return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths}</svg>`;
+        };
+        const categoryCard = category => `<button class="resource-category-card${platform.resourceCategory === category.name ? " is-active" : ""}" type="button" data-resource-category="${escapeHtml(category.name)}"><span class="resource-category-icon">${categoryIcon(category.name)}</span><span><strong>${escapeHtml(resourceCategoryLabel(category.name))}</strong><small>${category.count} ${category.count === 1 ? "recurso" : "recursos"}</small></span><span class="resource-category-arrow" aria-hidden="true">→</span></button>`;
+        const categoryCards = categories.slice(0, 8).map(categoryCard).join("");
+        const moreCategoryCards = categories.slice(8).map(categoryCard).join("");
+        view().innerHTML = `<div class="resource-library">
+          <header class="resource-library-hero">${heroImage ? `<img class="resource-hero-image" src="${escapeHtml(resourceDisplayUrl(heroImage))}" alt="" aria-hidden="true" fetchpriority="high">` : ""}<div class="resource-library-inner"><p class="resource-library-kicker">IPUC VILLA DEL RÍO · BIBLIOTECA DIGITAL</p><h1>Recursos</h1><p class="resource-library-intro">Material para servir, aprender y compartir</p><label class="resource-searchbox"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 5 5"></path></svg><input id="resourceSearch" type="search" placeholder="Buscar recursos, estudios, plantillas, diseños…" autocomplete="off" value="${escapeHtml(platform.resourceSearch)}"><kbd>⌕</kbd></label><div class="resource-library-links"><a href="https://ipuc.org.co/descargas-ipuc#graficos-ipuc" target="_blank" rel="noopener">Banco oficial IPUC <span aria-hidden="true">↗</span></a><a href="${DRIVE_RESOURCE_FOLDER_URL}" target="_blank" rel="noopener">Material bíblico en Drive <span aria-hidden="true">↗</span></a></div></div>${platform.resourcesLoaded && !platform.resourcesError ? `<section class="resource-category-section" aria-labelledby="resourceCategoriesTitle"><div class="resource-section-head"><div><p class="resource-eyebrow">EXPLORA POR TEMA</p><h2 id="resourceCategoriesTitle">Categorías</h2></div><span>${categories.length} categorías · ${items.length} recursos</span></div><div class="resource-category-grid">${categoryCards}</div>${moreCategoryCards ? `<div class="resource-category-more" hidden>${moreCategoryCards}</div><button class="resource-show-categories" type="button" data-resource-categories-toggle aria-expanded="false">Ver ${categories.length - 8} categorías más</button>` : ""}</section>` : ""}</header>
+          <div class="resource-library-main">
+            ${platform.resourcesError ? `<div class="resource-error">No se pudo cargar el banco ahora. <button type="button" data-resource-retry>Reintentar</button></div>` : platform.resourcesLoading || !platform.resourcesLoaded ? `<section class="resource-skeleton" aria-label="Cargando recursos">${Array.from({ length: 6 }, () => `<span></span>`).join("")}</section>` : `
+              ${latest.length ? `<section class="resource-recent-section"><div class="resource-section-head"><div><p class="resource-eyebrow">ACTUALIZADOS EN EL BANCO</p><h2>Agregados recientemente</h2></div></div><div class="resource-featured-grid">${latest.slice(0, 5).map(resourceCard).join("")}</div></section>` : ""}
+              <section class="resource-library-results" aria-labelledby="resourceResultsTitle"><div class="resource-section-head"><div><p class="resource-eyebrow">BIBLIOTECA</p><h2 id="resourceResultsTitle">Todos los recursos</h2></div><span data-resource-count>${items.length} recursos</span></div><div class="resource-filters"><label><span>Categoría</span><select id="resourceCategory"><option value="Todos">Todas las categorías</option>${categories.map(category => `<option value="${escapeHtml(category.name)}"${platform.resourceCategory === category.name ? " selected" : ""}>${escapeHtml(resourceCategoryLabel(category.name))} (${category.count})</option>`).join("")}</select></label><label><span>Formato</span><select id="resourceType"><option value="Todos">Todos los formatos</option>${formats.map(format => `<option value="${escapeHtml(format)}"${platform.resourceType === format ? " selected" : ""}>${escapeHtml(format.toUpperCase())}</option>`).join("")}</select></label><label><span>Ordenar</span><select id="resourceSort"><option value="recientes"${platform.resourceSort === "recientes" ? " selected" : ""}>Más recientes</option><option value="antiguos"${platform.resourceSort === "antiguos" ? " selected" : ""}>Más antiguos</option><option value="nombre"${platform.resourceSort === "nombre" ? " selected" : ""}>Nombre A–Z</option></select></label><button type="button" class="resource-clear-filters" data-resource-clear${activeFilters ? "" : " hidden"}>Limpiar filtros</button></div><div class="resource-library-grid" id="resourceGrid"></div><p class="resource-empty" id="resourceEmpty" hidden>No encontramos recursos con esa búsqueda o filtros.</p><button class="resource-load-more" id="resourceLoadMore" type="button" hidden>Cargar más</button></section>`}
+          </div><dialog class="resource-detail-dialog" aria-labelledby="resourceDetailTitle"><button class="resource-detail-close" type="button" aria-label="Cerrar detalle">×</button><div class="resource-detail-content"></div></dialog>
+        </div>`;
+        const root = view().querySelector(".resource-library");
+        const dialog = root.querySelector(".resource-detail-dialog");
+        const normalize = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es").replace(/[^a-z0-9]+/g, " ").trim();
+        const filteredItems = () => {
+          const term = normalize(platform.resourceSearch);
+          return items.filter(item => {
+            const haystack = normalize([item.name, item.description, item.category, item.folder, item.relativePath, item.kind?.label, item.kind?.extension, ...(item.tags || [])].join(" "));
+            return (!term || term.split(/\s+/).every(word => haystack.includes(word))) && (platform.resourceCategory === "Todos" || item.category === platform.resourceCategory) && (platform.resourceType === "Todos" || item.kind?.extension === platform.resourceType);
+          }).sort((a, b) => {
+            if (platform.resourceSort === "nombre") return a.name.localeCompare(b.name, "es");
+            const dateA = String(a.updatedAt || "");
+            const dateB = String(b.updatedAt || "");
+            if (platform.resourceSort === "antiguos") return (dateA ? 0 : 1) - (dateB ? 0 : 1) || dateA.localeCompare(dateB) || a.name.localeCompare(b.name, "es");
+            return dateB.localeCompare(dateA) || a.name.localeCompare(b.name, "es");
+          });
+        };
+        const syncUrl = () => {
+          const url = new URL(location.href);
+          [["buscar", platform.resourceSearch], ["categoria", platform.resourceCategory !== "Todos" ? platform.resourceCategory : ""], ["tipo", platform.resourceType !== "Todos" ? platform.resourceType : ""], ["orden", platform.resourceSort !== "recientes" ? platform.resourceSort : ""]].forEach(([key, value]) => value ? url.searchParams.set(key, value) : url.searchParams.delete(key));
+          history.replaceState(history.state, "", url.pathname + (url.search ? url.search : "") + url.hash);
+        };
+        const updateGrid = () => {
+          const grid = root.querySelector("#resourceGrid");
+          if (!grid) return;
+          const filtered = filteredItems();
+          const shown = filtered.slice(0, platform.resourceLimit);
+          grid.innerHTML = shown.map(resourceCard).join("");
+          grid.querySelectorAll("img").forEach(image => image.addEventListener("error", () => { image.hidden = true; const fallback = image.closest(".resource-preview")?.querySelector(".resource-image-fallback"); if (fallback) fallback.hidden = false; }, { once: true }));
+          root.querySelector("[data-resource-count]").textContent = `${filtered.length} ${filtered.length === 1 ? "recurso" : "recursos"}`;
+          root.querySelector("#resourceResultsTitle").textContent = platform.resourceCategory !== "Todos" ? resourceCategoryLabel(platform.resourceCategory) : platform.resourceSearch ? "Resultados de búsqueda" : "Todos los recursos";
+          root.querySelector("#resourceEmpty").hidden = filtered.length !== 0;
+          const more = root.querySelector("#resourceLoadMore");
+          more.hidden = shown.length >= filtered.length;
+          more.textContent = `Cargar más (${filtered.length - shown.length})`;
+          root.querySelector("[data-resource-clear]")?.toggleAttribute("hidden", !(platform.resourceSearch || platform.resourceCategory !== "Todos" || platform.resourceType !== "Todos"));
+        };
+        const showDetail = item => {
+          const related = items.filter(other => other.key !== item.key && (other.category === item.category || other.folderPath === item.folderPath || other.kind.extension === item.kind.extension)).slice(0, 4);
+          const media = resourceDetailPreviewMarkup(item);
+          const openUrl = item.url || resourceDisplayUrl(item);
+          dialog.querySelector(".resource-detail-content").innerHTML = `<div class="resource-detail-preview">${media}</div><div class="resource-detail-info"><p class="resource-eyebrow">${escapeHtml(resourceCategoryLabel(item.category))} · ${escapeHtml(item.kind.label)}</p><h2 id="resourceDetailTitle">${escapeHtml(resourceNameLabel(item.name))}</h2><p>${escapeHtml(resourceFolderLabel(item.folder || "Biblioteca IPUC"))}</p><dl><div><dt>Formato</dt><dd>${escapeHtml(item.kind.extension.toUpperCase())}</dd></div>${item.size ? `<div><dt>Tamaño</dt><dd>${escapeHtml(humanFileSize(item.size))}</dd></div>` : ""}${item.updatedAt ? `<div><dt>Actualizado</dt><dd>${escapeHtml(formatDateShort(item.updatedAt.slice(0, 10)))}</dd></div>` : ""}<div><dt>Origen</dt><dd>${escapeHtml(item.source || "Banco oficial IPUC")}</dd></div></dl><div class="resource-detail-actions"><a class="resource-detail-primary" href="${escapeHtml(resourceDownloadUrl(item))}" target="_blank" rel="noopener" download>Descargar</a>${openUrl ? `<a class="resource-detail-secondary" href="${escapeHtml(openUrl)}" target="_blank" rel="noopener">Abrir recurso ↗</a>` : ""}</div>${related.length ? `<section class="resource-related"><h3>También puede servirte</h3>${related.map(other => `<button type="button" data-resource-detail="${escapeHtml(other.key)}"><span class="resource-kind resource-kind-${escapeHtml(other.kind.extension)}">${escapeHtml(other.kind.icon)}</span><span><strong>${escapeHtml(resourceNameLabel(other.name))}</strong><small>${escapeHtml(resourceCategoryLabel(other.category))} · ${escapeHtml(other.kind.label)}</small></span></button>`).join("")}</section>` : ""}</div>`;
+          if (!dialog.open) dialog.showModal();
+        };
+        root.addEventListener("input", event => {
+          if (event.target.id !== "resourceSearch") return;
+          platform.resourceSearch = event.target.value;
+          platform.resourceLimit = 24;
+          syncUrl();
+          updateGrid();
         });
-         view().querySelectorAll("[data-resource-path]").forEach(button => {
-          button.onclick = () => { platform.resourcePath = button.dataset.resourcePath || ""; platform.resourceSearch = ""; renderResourcesPage(); };
+        root.addEventListener("change", event => {
+          if (event.target.id === "resourceCategory") platform.resourceCategory = event.target.value;
+          else if (event.target.id === "resourceType") platform.resourceType = event.target.value;
+          else if (event.target.id === "resourceSort") platform.resourceSort = event.target.value;
+          else return;
+          platform.resourceLimit = 24;
+          syncUrl();
+          updateGrid();
         });
-        view().querySelector("[data-resource-retry]")?.addEventListener("click", loadResourceCatalog);
+        root.addEventListener("click", event => {
+          const categoriesToggle = event.target.closest("[data-resource-categories-toggle]");
+          if (categoriesToggle) { const more = root.querySelector(".resource-category-more"); const expanded = more.hidden; more.hidden = !expanded; categoriesToggle.setAttribute("aria-expanded", String(expanded)); categoriesToggle.textContent = expanded ? "Mostrar menos" : `Ver ${categories.length - 8} categorías más`; return; }
+          const category = event.target.closest("[data-resource-category]");
+          if (category) { platform.resourceCategory = platform.resourceCategory === category.dataset.resourceCategory ? "Todos" : category.dataset.resourceCategory; root.querySelector("#resourceCategory").value = platform.resourceCategory; platform.resourceLimit = 24; syncUrl(); updateGrid(); root.querySelector("#resourceResultsTitle").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+          if (event.target.closest("[data-resource-clear]")) { platform.resourceSearch = ""; platform.resourceCategory = "Todos"; platform.resourceType = "Todos"; root.querySelector("#resourceSearch").value = ""; root.querySelector("#resourceCategory").value = "Todos"; root.querySelector("#resourceType").value = "Todos"; syncUrl(); updateGrid(); return; }
+          if (event.target.closest("#resourceLoadMore")) { platform.resourceLimit += 24; updateGrid(); return; }
+          if (event.target.closest("[data-resource-retry]")) { loadResourceCatalog(); return; }
+          const detailButton = event.target.closest("[data-resource-detail]");
+          if (detailButton) { const item = items.find(resource => resource.key === detailButton.dataset.resourceDetail); if (item) showDetail(item); return; }
+          if (event.target.closest(".resource-detail-close")) dialog.close();
+          const download = event.target.closest("[data-resource-download]");
+          if (download) { event.preventDefault(); const item = items.find(resource => resource.key === download.dataset.resourceDownload); if (item) downloadResource(item, download); }
+        });
+        updateGrid();
         if (!platform.resourcesLoaded && !platform.resourcesLoading) loadResourceCatalog();
       }
 
@@ -1810,13 +1964,16 @@ const TYPES = {
           if (!response.ok) throw new Error("No se pudo consultar el repositorio");
           const xml = new DOMParser().parseFromString(await response.text(), "application/xml");
           const nodes = [...xml.getElementsByTagNameNS("*", "Contents")];
+          const nodeByKey = new Map(nodes.map(node => [node.getElementsByTagNameNS("*", "Key")[0]?.textContent || "", node]));
           const officialItems = nodes.map(node => node.getElementsByTagNameNS("*", "Key")[0]?.textContent || "").filter(key => key && !key.endsWith("/.folder") && !key.endsWith("/")).map(key => {
             const relative = key.slice(RESOURCE_ROOT_PREFIX.length);
             const parts = relative.split("/");
             const name = parts.pop() || relative;
-            const sizeNode = nodes.find(item => item.getElementsByTagNameNS("*", "Key")[0]?.textContent === key)?.getElementsByTagNameNS("*", "Size")[0];
+            const objectNode = nodeByKey.get(key);
+            const sizeNode = objectNode?.getElementsByTagNameNS("*", "Size")[0];
+            const updatedAt = objectNode?.getElementsByTagNameNS("*", "LastModified")[0]?.textContent || "";
             const folderPath = parts.join("/");
-            return { key, name, relativePath: relative, folderPath, folder: parts.join(" / "), category: parts[0] || "Otros", size: Number(sizeNode?.textContent || 0), kind: resourceKind(name), url: resourceUrl(key) };
+            return { key, name, relativePath: relative, folderPath, folder: parts.join(" / "), category: parts[0] || "Otros", tags: parts, size: Number(sizeNode?.textContent || 0), updatedAt, kind: resourceKind(name), url: resourceUrl(key) };
           });
           const driveItems = DRIVE_RESOURCE_ITEMS.map(([name, folderPath, size, url]) => ({ key: `drive:${url}`, name, relativePath: `Material bíblico/${folderPath}/${name}`, folderPath: `Material bíblico/${folderPath}`, folder: `Material bíblico / ${folderPath.replace(/\//g, " / ")}`, category: "Material bíblico", size, kind: resourceKind(name), url, source: "Google Drive" }));
           platform.resourceItems = [...officialItems, ...driveItems].sort((a, b) => a.folderPath.localeCompare(b.folderPath, "es") || a.name.localeCompare(b.name, "es"));
@@ -1933,7 +2090,7 @@ const TYPES = {
 
       function resourceCard(item) {
         const preview = resourcePreviewMarkup(item);
-        return `<article class="resource-card glass"><div class="resource-preview">${preview}</div><div class="resource-card-body"><span class="resource-category-label">${escapeHtml(resourceCategoryLabel(item.category))}</span><h3 title="${escapeHtml(item.name)}">${escapeHtml(resourceNameLabel(item.name))}</h3><p>${escapeHtml(resourceFolderLabel(item.folder || "Carpeta principal"))}</p><small>${escapeHtml(item.source || "Banco oficial IPUC")} · ${escapeHtml(item.kind.label)} · ${humanFileSize(item.size)}</small></div><div class="resource-actions"><a class="resource-download" href="${escapeHtml(resourceDownloadUrl(item))}" data-resource-download="${escapeHtml(item.key)}" download>Descargar<span aria-hidden="true">↓</span></a><a class="resource-open" href="${escapeHtml(item.url || resourceDisplayUrl(item))}" target="_blank" rel="noopener">Abrir<span aria-hidden="true">↗</span></a></div></article>`;
+        return `<article class="resource-card"><button class="resource-card-preview" type="button" data-resource-detail="${escapeHtml(item.key)}" aria-label="Ver ${escapeHtml(resourceNameLabel(item.name))}"><span class="resource-preview">${preview}<span class="resource-image-fallback" hidden><span class="resource-kind resource-kind-${escapeHtml(item.kind.extension)}">${escapeHtml(item.kind.icon)}</span><strong>Vista previa no disponible</strong></span></span><span class="resource-card-view">Ver recurso <span aria-hidden="true">↗</span></span></button><div class="resource-card-body"><span class="resource-category-label">${escapeHtml(resourceCategoryLabel(item.category))}</span><h3 title="${escapeHtml(item.name)}">${escapeHtml(resourceNameLabel(item.name))}</h3><p>${escapeHtml(resourceFolderLabel(item.folder || "Carpeta principal"))}</p><small>${escapeHtml(item.kind.label)} · ${escapeHtml(humanFileSize(item.size))}${item.updatedAt ? ` · ${escapeHtml(formatDateShort(item.updatedAt.slice(0, 10)))}` : ""}</small></div><div class="resource-actions"><button type="button" class="resource-open" data-resource-detail="${escapeHtml(item.key)}">Información</button><a class="resource-download" href="${escapeHtml(resourceDownloadUrl(item))}" data-resource-download="${escapeHtml(item.key)}" download>Descargar <span aria-hidden="true">↓</span></a></div></article>`;
       }
 
       function resourceIsImage(item) {
@@ -1970,21 +2127,33 @@ const TYPES = {
       }
 
       function resourcePreviewMarkup(item) {
-        const source = resourceDisplayUrl(item);
         const label = escapeHtml(resourceNameLabel(item?.name || "Recurso"));
-        if (!source) return `<div class="resource-preview-fallback"><span class="resource-kind">${escapeHtml(item?.kind?.icon || "FILE")}</span><strong>Vista previa no disponible</strong></div>`;
-        if (resourceIsImage(item)) return `<img src="${escapeHtml(source)}" alt="Vista previa de ${label}" loading="lazy" decoding="async">`;
-        if (resourceIsPdf(item)) return `<iframe src="${escapeHtml(source)}" title="Vista previa de ${label}" loading="lazy"></iframe>`;
         const driveId = driveFileId(item);
-        if (driveId && item?.source === "Google Drive" && (resourceIsVideo(item) || resourceIsAudio(item))) return `<iframe src="https://drive.google.com/file/d/${encodeURIComponent(driveId)}/preview" title="Vista previa de ${label}" loading="lazy" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
-        if (resourceIsVideo(item)) return `<video src="${escapeHtml(source)}" muted playsinline controls preload="metadata"></video>`;
-        if (resourceIsAudio(item)) return `<div class="resource-preview-audio"><span class="resource-preview-icon" aria-hidden="true">♫</span><strong>Audio disponible</strong><audio src="${escapeHtml(source)}" controls preload="metadata"></audio></div>`;
-        return `<div class="resource-preview-fallback"><span class="resource-kind resource-kind-${escapeHtml(item?.kind?.extension || "file")}">${escapeHtml(item?.kind?.icon || "FILE")}</span><strong>Archivo ${escapeHtml(item?.kind?.label || "disponible")}</strong></div>`;
+        if (resourceIsImage(item)) return `<img src="${escapeHtml(resourceDisplayUrl(item))}" alt="Vista previa de ${label}" loading="lazy" decoding="async">`;
+        if (resourceIsPdf(item) && driveId) return `<img src="https://drive.google.com/thumbnail?id=${encodeURIComponent(driveId)}&sz=w800" alt="Portada de ${label}" loading="lazy" decoding="async">`;
+        const labelText = resourceIsPdf(item) ? "Documento PDF" : resourceIsVideo(item) ? "Video" : resourceIsAudio(item) ? "Audio" : item?.kind?.label || "Archivo";
+        return `<span class="resource-preview-file"><span class="resource-kind resource-kind-${escapeHtml(item?.kind?.extension || "file")}">${escapeHtml(item?.kind?.icon || "FILE")}</span><strong>${escapeHtml(labelText)}</strong><small>${escapeHtml(item?.kind?.extension?.toUpperCase() || "")}</small></span>`;
+      }
+
+      function resourceDetailPreviewMarkup(item) {
+        const source = resourceDisplayUrl(item);
+        const label = escapeHtml(resourceNameLabel(item.name));
+        const id = driveFileId(item);
+        if (resourceIsImage(item)) return `<img src="${escapeHtml(source)}" alt="${label}" loading="lazy">`;
+        if (resourceIsPdf(item)) return `<iframe src="${id ? `https://drive.google.com/file/d/${encodeURIComponent(id)}/preview` : escapeHtml(source)}" title="Vista previa de ${label}" loading="lazy"></iframe>`;
+        if (resourceIsVideo(item)) return id && item.source === "Google Drive" ? `<iframe src="https://drive.google.com/file/d/${encodeURIComponent(id)}/preview" title="Reproductor de ${label}" loading="lazy" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>` : `<video src="${escapeHtml(source)}" controls playsinline preload="metadata"></video>`;
+        if (resourceIsAudio(item)) return id && item.source === "Google Drive" ? `<iframe src="https://drive.google.com/file/d/${encodeURIComponent(id)}/preview" title="Reproductor de ${label}" loading="lazy" allow="autoplay; encrypted-media"></iframe>` : `<audio src="${escapeHtml(source)}" controls preload="metadata"></audio>`;
+        return `<div class="resource-detail-file"><span class="resource-kind resource-kind-${escapeHtml(item.kind.extension)}">${escapeHtml(item.kind.icon)}</span><strong>Vista previa no disponible para ${escapeHtml(item.kind.label.toLowerCase())}</strong></div>`;
       }
 
       async function downloadResource(item, trigger) {
         const source = resourceDownloadUrl(item);
         if (!source) return showToast("Este recurso no tiene una descarga disponible.", "error");
+        if (item.source === "Google Drive" || item.size > 25 * 1024 * 1024) {
+          window.open(source, "_blank", "noopener,noreferrer");
+          showToast("El archivo se abrirá para su descarga.", "info");
+          return;
+        }
         const originalLabel = trigger?.textContent || "Descargar";
         if (trigger) {
           trigger.classList.add("is-loading");
@@ -5299,6 +5468,7 @@ const TYPES = {
       function setupSiteLoader() {
         const loader = document.querySelector("[data-site-loader]");
         if (!loader) return;
+        if (parseRoute().name === "podcast") { loader.remove(); return; }
         const close = () => {
           if (loader.classList.contains("is-hidden")) return;
           loader.classList.add("is-hidden");

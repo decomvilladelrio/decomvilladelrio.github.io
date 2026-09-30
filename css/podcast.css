@@ -1,0 +1,161 @@
+body.platform-body.podcast-mode { background: #020812; color: #f7fbff; }
+body.platform-body.podcast-mode .platform-shell { width: 100%; max-width: none; padding: 0; }
+body.platform-body.podcast-mode .platform-top,
+body.platform-body.podcast-mode .platform-footer,
+body.platform-body.podcast-mode .music-widget { display: none; }
+body.platform-body.podcast-mode .route-view { display: block; margin: 0; padding: 0; max-width: none; }
+body.platform-body.podcast-mode .route-view.is-route-entering > .podcast-stream { animation: none; }
+body.platform-body.podcast-mode .site-video-backdrop { display: none; }
+.podcast-stream { min-height: 100dvh; overflow: clip; background: #020812; color: #f7fbff; font-family: inherit; }
+.podcast-stream * { box-sizing: border-box; }
+.podcast-stream button { font: inherit; cursor: pointer; }
+.podcast-stream button:focus-visible,
+.podcast-stream a:focus-visible,
+.podcast-stream input:focus-visible { outline: 2px solid #f5bd37; outline-offset: 3px; }
+.podcast-stream [hidden] { display: none !important; }
+.stream-nav { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: clamp(16px, 3vw, 44px); height: 76px; padding: 8px max(28px, calc((100vw - 1480px)/2)); background: rgba(2, 8, 18, .94); border-bottom: 1px solid rgba(255,255,255,.08); backdrop-filter: blur(12px); }
+.stream-brand { display: block; flex: none; width: 195px; }
+.stream-brand img { display: block; width: 100%; height: auto; max-height: 60px; object-fit: contain; }
+.stream-links { display: flex; align-items: stretch; align-self: stretch; gap: clamp(12px, 2vw, 32px); }
+.stream-links a { display: flex; align-items: center; position: relative; color: #d5dfe9; text-decoration: none; font-weight: 650; }
+.stream-links a[aria-current], .stream-links a:hover { color: #f7fbff; }
+.stream-links a[aria-current]::after { position: absolute; content: ""; left: 0; right: 0; bottom: 0; height: 2px; background: #f5bd37; }
+.stream-search-toggle { display: flex; gap: 8px; align-items: center; border: 0; padding: 8px; color: #d5dfe9; background: transparent; }
+.stream-search-toggle:first-letter { font-size: 1.6rem; }
+.stream-search-toggle svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.stream-search-toggle:hover, .stream-back:hover { color: #fff; }
+.stream-back { margin-left: auto; color: #d5dfe9; text-decoration: none; white-space: nowrap; }
+.stream-back span { margin-left: 5px; }
+.stream-mobile-menu { display: none; }
+.stream-search-panel { position: sticky; top: 76px; z-index: 19; display: flex; align-items: center; gap: 14px; padding: 12px max(28px, calc((100vw - 1480px)/2)); background: #071629; border-bottom: 1px solid rgba(255,255,255,.1); }
+.stream-search-panel label { flex: none; font-weight: 700; }
+.stream-search-panel input { width: min(540px, 100%); min-width: 0; height: 42px; padding: 0 13px; border: 1px solid #46617d; border-radius: 8px; background: #020812; color: #fff; }
+.stream-search-panel span { color: #b8c7d7; font-size: .85rem; white-space: nowrap; }
+.stream-hero { position: relative; isolation: isolate; display: flex; align-items: end; min-height: clamp(410px, 62vh, 620px); padding: clamp(40px, 6vw, 80px) max(28px, calc((100vw - 1480px)/2)); overflow: hidden; background: radial-gradient(circle at 70% 20%, #14395b, #020812 68%); }
+.stream-hero-backdrop { position: absolute; inset: 0; z-index: -3; background-size: cover; background-position: center; opacity: .2; filter: blur(24px); transform: scale(1.05); }
+.stream-hero-image { position: absolute; z-index: -2; top: 0; right: 0; width: min(70%, 1100px); height: 100%; object-fit: contain; object-position: right center; }
+.stream-hero::after { position: absolute; content: ""; z-index: -1; inset: 0; background: linear-gradient(90deg, #020812 5%, rgba(2,8,18,.91) 29%, rgba(2,8,18,.35) 64%, transparent 100%), linear-gradient(0deg, #020812 0%, transparent 35%); }
+.stream-hero-content { width: min(610px, 100%); padding-bottom: 48px; }
+.stream-kicker { margin: 0 0 14px; color: #f5bd37; font-size: .76rem; font-weight: 800; letter-spacing: .28em; text-transform: uppercase; }
+.podcast-stream .stream-hero h1 { margin: 0 0 18px; color: #fff; font-size: clamp(2.6rem, 5vw, 5.6rem); line-height: 1.02; letter-spacing: -.035em; text-wrap: balance; }
+.stream-hero-description { max-width: 55ch; margin: 0 0 20px; color: #ecf2f7; font-size: clamp(1rem, 1.35vw, 1.22rem); line-height: 1.5; }
+.stream-hero-meta, .stream-detail-meta { color: #b6c7d8; font-size: .9rem; }
+.stream-hero-meta span { padding: 0 9px; }
+.stream-hero-actions { display: flex; flex-wrap: wrap; gap: 11px; margin-top: 26px; }
+.podcast-stream .stream-primary, .podcast-stream .stream-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 47px; padding: 10px 21px; border-radius: 7px; font-weight: 750; transition: transform .18s ease, background .18s ease; }
+.podcast-stream .stream-primary { border: 1px solid #f5bd37; color: #091424; background: #f5bd37; }
+.podcast-stream .stream-secondary { border: 1px solid #92abc4; color: #fff; background: rgba(5,18,36,.6); }
+.podcast-stream .stream-primary:hover, .podcast-stream .stream-secondary:hover { transform: translateY(-2px); }
+.podcast-stream .stream-primary:active, .podcast-stream .stream-secondary:active { transform: translateY(0); }
+.stream-catalog { position: relative; z-index: 1; max-width: 1600px; margin: 0 auto; padding: 22px clamp(20px, 3.5vw, 60px) 80px; }
+.stream-row { margin-bottom: 38px; }
+.stream-row-head { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 14px; }
+.podcast-stream .stream-row h2 { margin: 0; color: #f7fbff; font-size: clamp(1.2rem, 1.8vw, 1.65rem); letter-spacing: -.02em; }
+.stream-row-actions { display: flex; gap: 6px; }
+.stream-row-actions button { width: 36px; height: 36px; border: 1px solid #47627e; border-radius: 50%; background: #0b2037; color: white; font-size: 1.7rem; line-height: 1; }
+.stream-row-actions button:hover { background: #173b61; }
+.stream-rail { display: grid; grid-auto-flow: column; grid-auto-columns: clamp(235px, 22vw, 320px); gap: 14px; overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x proximity; scrollbar-width: none; padding: 3px 2px 12px; }
+.stream-rail::-webkit-scrollbar { display: none; }
+.podcast-stream .stream-card { display: block; min-width: 0; padding: 0; border: 0; text-align: left; background: transparent; color: #fff; scroll-snap-align: start; transition: transform .2s ease; }
+.podcast-stream .stream-card:hover { transform: translateY(-3px); }
+.stream-card-art { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 7px; background: #0c2746; }
+.stream-card-art::after { position: absolute; content: ""; inset: 0; border: 1px solid rgba(255,255,255,.15); border-radius: inherit; pointer-events: none; }
+.stream-card-art img { width: 100%; height: 100%; object-fit: contain; transition: transform .25s ease; }
+.stream-card-art .stream-card-logo { width: 65%; height: 65%; }
+.stream-card:hover .stream-card-art img { transform: scale(1.035); }
+.stream-card-duration { position: absolute; right: 9px; bottom: 9px; padding: 3px 6px; border-radius: 4px; background: rgba(0,0,0,.82); color: #fff; font-size: .76rem; font-variant-numeric: tabular-nums; }
+.stream-card-play { position: absolute; display: grid; place-items: center; right: 12px; bottom: 12px; width: 36px; height: 36px; border-radius: 50%; background: rgba(2,8,18,.78); border: 1px solid #b9d1e5; opacity: 0; transition: opacity .18s ease; }
+.stream-card:hover .stream-card-play, .stream-card:focus-visible .stream-card-play { opacity: 1; }
+.stream-card:hover .stream-card-duration, .stream-card:focus-visible .stream-card-duration { opacity: 0; }
+.stream-card-title { display: block; margin: 10px 0 4px; font-size: 1rem; font-weight: 750; line-height: 1.3; }
+.stream-card-meta { display: block; color: #aab9c9; font-size: .82rem; }
+.stream-categories { display: flex; flex-wrap: wrap; gap: 9px; margin: 8px 0 30px; }
+.stream-categories button { border: 1px solid #526b84; border-radius: 999px; padding: 7px 13px; background: transparent; color: #d9e4ed; }
+.stream-categories button.active { border-color: #f5bd37; color: #f5bd37; }
+.stream-no-results, .stream-empty { color: #c2d0dd; }
+.stream-empty { display: grid; place-items: center; min-height: 260px; text-align: center; }
+.stream-empty img { width: min(250px, 75%); height: auto; }
+.stream-empty h2 { margin: 0; }
+.stream-dialog { width: min(960px, calc(100vw - 26px)); max-height: min(92dvh, 920px); padding: 0; border: 1px solid #385877; border-radius: 12px; background: #071629; color: #f7fbff; overflow-y: auto; }
+.stream-dialog::backdrop { background: rgba(0,4,12,.85); backdrop-filter: blur(5px); }
+.stream-dialog-close { position: sticky; top: 12px; left: calc(100% - 56px); z-index: 2; width: 40px; height: 40px; margin: 12px 12px -52px auto; border: 1px solid #7892aa; border-radius: 50%; background: #061326; color: white; font-size: 1.6rem; }
+.stream-detail-art { display: grid; place-items: center; height: clamp(190px, 28vw, 310px); background: #0a2442; }
+.stream-detail-art img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.stream-detail-art img.stream-detail-logo { width: 45%; height: 60%; }
+.stream-detail-copy { padding: clamp(22px, 4vw, 42px); }
+.stream-detail-copy h2 { margin: 0 0 12px; font-size: clamp(1.7rem, 3vw, 2.9rem); line-height: 1.1; }
+.stream-detail-copy > p:last-of-type { max-width: 75ch; color: #e1eaf2; line-height: 1.6; }
+.stream-detail-copy .stream-primary { margin-top: 12px; }
+.stream-player { padding: 0 clamp(22px, 4vw, 42px) 35px; }
+.stream-player iframe, .stream-player video { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; background: black; }
+.stream-player audio { width: 100%; }
+.stream-watch { position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; padding: 54px 24px 28px; background: #000; }
+.stream-watch-media { width: min(100%, 1420px); max-height: calc(100dvh - 154px); aspect-ratio: 16 / 9; background: #000; }
+.stream-watch-media iframe, .stream-watch-media video { display: block; width: 100%; height: 100%; border: 0; background: #000; }
+.stream-watch-media audio { width: min(100%, 900px); }
+.stream-watch-back { position: absolute; top: 16px; left: 20px; z-index: 2; display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 7px 13px; border: 1px solid #8296ab; border-radius: 7px; background: rgba(3,12,24,.88); color: #fff; font-weight: 700; }
+.stream-watch-back:hover { background: #142c45; }
+.stream-hero.is-playing { min-height: calc(100dvh - 76px); height: calc(100dvh - 76px); padding: 0; background: #000; }
+.stream-hero.is-playing .stream-hero-backdrop, .stream-hero.is-playing .stream-hero-image, .stream-hero.is-playing .stream-hero-content { display: none; }
+.podcast-stream:has(.stream-hero.is-playing) .stream-catalog { display: none; }
+body.platform-body.podcast-watching { overflow: hidden; }
+.stream-related { padding: 0 clamp(22px, 4vw, 42px) 25px; }
+.stream-related .stream-rail { grid-auto-columns: clamp(185px, 25vw, 245px); }
+.stream-intro { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: radial-gradient(circle at center, #102b4b, #02060e 65%); animation: intro-in .35s ease-out both; }
+.stream-intro img { width: min(68vw, 780px); max-height: 45vh; object-fit: contain; animation: intro-logo 2.2s cubic-bezier(.2,.7,.2,1) both; filter: drop-shadow(0 14px 32px rgba(0,51,141,.24)); }
+.stream-intro button { position: absolute; right: 24px; bottom: 24px; border: 1px solid #7892aa; border-radius: 6px; padding: 8px 14px; color: #fff; background: transparent; }
+.stream-intro.is-done { opacity: 0; pointer-events: none; transition: opacity .5s ease; }
+@keyframes intro-logo { from { opacity: 0; transform: scale(.94); filter: blur(10px); } 35% { opacity: 1; } to { opacity: 1; transform: scale(1); filter: blur(0); } }
+@keyframes intro-in { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 720px) {
+  .stream-nav { height: 64px; padding: 5px 16px; gap: 12px; }
+  .stream-brand { width: 154px; }
+  .stream-links, .stream-back { display: none; }
+  .stream-search-toggle { margin-left: auto; font-size: 1.5rem; }
+  .stream-search-toggle span { display: none; }
+  .stream-mobile-menu { position: relative; display: block; }
+  .stream-mobile-menu summary { display: grid; place-items: center; width: 42px; height: 42px; list-style: none; border: 1px solid #48627d; border-radius: 8px; font-size: 1.35rem; cursor: pointer; }
+  .stream-mobile-menu summary::-webkit-details-marker { display: none; }
+  .stream-mobile-menu nav { position: absolute; top: 48px; right: 0; width: min(250px, calc(100vw - 32px)); padding: 8px; border: 1px solid #42607f; border-radius: 9px; background: #071629; box-shadow: 0 20px 45px #0009; }
+  .stream-mobile-menu nav a { display: block; padding: 12px; color: #fff; text-decoration: none; }
+  .stream-search-panel { top: 64px; flex-wrap: wrap; padding: 12px 16px; }
+  .stream-search-panel label { width: 100%; }
+  .stream-search-panel input { flex: 1; }
+  .stream-hero { min-height: min(62dvh, 520px); align-items: end; padding: 24px 18px; }
+  .stream-hero-image { top: 0; width: 100%; height: 62%; object-position: center top; }
+  .stream-hero::after { background: linear-gradient(0deg, #020812 4%, rgba(2,8,18,.92) 32%, rgba(2,8,18,.16) 80%); }
+  .stream-hero-content { padding: 0 0 14px; }
+  .stream-hero.is-playing { min-height: calc(100dvh - 64px); height: calc(100dvh - 64px); }
+  .stream-watch { padding: 58px 0 20px; }
+  .stream-watch-media { width: 100%; max-height: calc(100dvh - 100px); }
+  .stream-watch-back { top: 10px; left: 12px; }
+  .podcast-stream .stream-hero h1 { font-size: clamp(2rem, 8vw, 3.5rem); }
+  .stream-hero-description { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+  .stream-catalog { margin-top: 0; padding: 0 16px 60px; }
+  .stream-rail { grid-auto-columns: minmax(205px, 66vw); }
+  .stream-row-actions { display: none; }
+  .stream-card-play { opacity: 1; }
+  .stream-dialog { width: 100vw; max-width: 100vw; max-height: 100dvh; min-height: 100dvh; border: 0; border-radius: 0; }
+  .stream-detail-art { height: min(56vw, 370px); }
+  .stream-intro img { width: 80vw; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .podcast-stream *, .stream-intro { animation: none !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
+
+/* The public theme has high-specificity button and shell rules; keep this route isolated. */
+body.platform-body.podcast-mode:not(:has(.earth-hero)):not(:has(.admin-workspace)):not(:has(.login-card)) .platform-shell { width: 100%; margin: 0; padding: 0; }
+body.platform-body.podcast-mode:not(:has(.earth-hero)):not(:has(.admin-workspace)):not(:has(.login-card)) .route-view { margin: 0; padding: 0; gap: 0; }
+body.platform-body.podcast-mode:not(:has(.earth-hero)) .podcast-stream button { box-shadow: none; text-transform: none; }
+body.platform-body.podcast-mode:not(:has(.earth-hero)) .podcast-stream button.stream-primary { background: #f5bd37; border: 1px solid #f5bd37; color: #091424; }
+body.platform-body.podcast-mode:not(:has(.earth-hero)) .podcast-stream button.stream-secondary { background: rgba(5,18,36,.6); border: 1px solid #92abc4; color: white; }
+body.platform-body.podcast-mode:not(:has(.earth-hero)) .podcast-stream button.stream-card,
+body.platform-body.podcast-mode:not(:has(.earth-hero)) .podcast-stream button.stream-search-toggle { background: transparent; border: 0; color: inherit; }
+body.platform-body.podcast-mode:not(:has(.earth-hero)) .podcast-stream .stream-row-actions button,
+body.platform-body.podcast-mode:not(:has(.earth-hero)) .podcast-stream .stream-mobile-menu summary { background: #0b2037; border: 1px solid #47627e; color: white; }
+body.platform-body.podcast-mode:not(:has(.earth-hero)) .podcast-stream .stream-categories button { background: transparent; border: 1px solid #526b84; color: #d9e4ed; }
+body.platform-body.podcast-mode:not(:has(.earth-hero)) .podcast-stream .stream-categories button.active { border-color: #f5bd37; color: #f5bd37; }
+body.platform-body.podcast-mode:not(:has(.earth-hero)) .podcast-stream .stream-dialog-close { background: #061326; border: 1px solid #7892aa; color: #fff; }
+body.platform-body.podcast-mode:not(:has(.earth-hero)) .podcast-stream .stream-watch-back { background: rgba(3,12,24,.92); border: 1px solid #8296ab; color: #fff; }
+body.platform-body.podcast-mode:not(:has(.earth-hero)) .stream-intro button { background: transparent; border: 1px solid #7892aa; color: #fff; }
+@media (max-width: 900px) { body.platform-body.podcast-mode:not(:has(.earth-hero)):not(:has(.admin-workspace)):not(:has(.login-card)) .platform-shell { width: 100%; padding: 0; } }
