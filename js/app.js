@@ -1629,8 +1629,8 @@ const TYPES = {
       setupChurchMusic();
       loadDriveMusic();
       const resumeMusicAfterInteraction = () => {
-        if (location.pathname !== "/" || !getChurchMusicPlaylist().length) return;
-        if (location.pathname === "/" && getChurchMusicPlaylist().length && document.getElementById("churchMusicAudio")?.paused) {
+        if (parseRoute().name !== "inicio" || !getChurchMusicPlaylist().length) return;
+        if (parseRoute().name === "inicio" && getChurchMusicPlaylist().length && document.getElementById("churchMusicAudio")?.paused) {
           startChurchMusic();
         }
         ["pointerdown", "keydown", "touchstart"].forEach(type => document.removeEventListener(type, resumeMusicAfterInteraction));
@@ -1651,6 +1651,7 @@ const TYPES = {
         refreshAdminNav();
         setNavOpen(false);
         const route = parseRoute();
+        if (route.name === "podcast") stopChurchMusic();
         document.body.classList.remove("stream-detail-open", "podcast-watching");
         if (route.name !== "podcast") document.querySelector(".stream-intro")?.remove();
         document.body.classList.toggle("public-inner-page", route.name !== "inicio" && !["admin", "login"].includes(route.name));
@@ -5506,7 +5507,7 @@ const TYPES = {
         } finally {
           APP_STATE.musicPlaylistLoading = false;
           setupChurchMusic();
-          if (location.pathname === "/" && getChurchMusicPlaylist().length) startChurchMusic();
+          if (parseRoute().name === "inicio" && getChurchMusicPlaylist().length) startChurchMusic();
         }
       }
 
