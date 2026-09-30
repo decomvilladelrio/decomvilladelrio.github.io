@@ -1,4 +1,4 @@
-const CACHE_NAME = "ipuc-villa-del-rio-v111-decom-offline";
+const CACHE_NAME = "ipuc-villa-del-rio-v112-decom-offline";
 const SHELL = ["/", "/membresia/", "/membresia/decom/", "/manifest.webmanifest", "/membresia/decom/manifest.webmanifest", "/css/styles.css", "/css/modern.css", "/css/platform-runtime.css", "/css/admin.css", "/css/home-hero.css", "/css/podcast.css", "/css/resources.css", "/css/membership-decom.css", "/js/app.js", "/js/member-profile.js", "/js/decom-store.js", "/js/decom-registration.js", "/js/vendor/supabase-2.57.4.js", "/assets/logo.png", "/assets/favicon.png", "/assets/ipuc-villa-del-rio-brand.png", "/assets/historias-que-edifican.png", "/assets/earth/Tierra_Hero_preview.png"];
 const publicAsset = path => /^\/(?:css\/[\w.-]+\.css|js\/(?:[\w.-]+\.js|vendor\/supabase-2\.57\.4\.js))$/.test(path) || SHELL.includes(path);
 self.addEventListener("install", e => {e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(SHELL)));});
