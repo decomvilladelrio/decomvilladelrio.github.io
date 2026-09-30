@@ -1337,7 +1337,7 @@ const TYPES = {
         sdkVersion: "12.14.0"
       };
       const SUPABASE_CONFIG = {
-        url: "https://qgucwxgwehkualhfnckt.supabase.co",
+        url: "https://btgdhddlxqwezdzvngmg.supabase.co",
         publishableKey: "sb_publishable_ZqqjaA95z6fwMSmQ8Rok9g_Wqhgc0ym",
         storageBucket: "event-media",
         leaderBucket: "leader-submissions",
@@ -1362,7 +1362,7 @@ const TYPES = {
       ].map(([id, name]) => ({
         id,
         name,
-        audioUrl: `https://qgucwxgwehkualhfnckt.supabase.co/functions/v1/drive-upload/music?id=${encodeURIComponent(id)}`
+        audioUrl: `https://btgdhddlxqwezdzvngmg.supabase.co/functions/v1/drive-upload/music?id=${encodeURIComponent(id)}`
       }));
       const cloud = {
         enabled: false,
