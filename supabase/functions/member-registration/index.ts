@@ -41,6 +41,28 @@ Deno.serve(async req => {
   let staffUserId = "";
   try {
     const form = await req.formData();
+    const accountMode = form.get("accountMode") === "true";
+    const adminMemberId = String(form.get("adminMemberId") || "");
+    if(adminMemberId && !accountMode)return json(req,{error:"Inicia sesión para modificar el registro."},401);
+    let accountUserId = "";
+    let accountMember: {id:string;email:string;photo_path:string|null;auth_user_id:string|null} | null = null;
+    if (accountMode) {
+      const bearer = req.headers.get("Authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+      if (!bearer) return json(req,{error:"Inicia sesión para guardar tu membresía."},401);
+      const {data:{user},error}=await supabaseAdmin.auth.getUser(bearer);
+      if(error || !user?.email_confirmed_at || !user.email)return json(req,{error:"Confirma tu correo e inicia sesión nuevamente."},401);
+      accountUserId=user.id;
+      if(adminMemberId){
+        const caller=createClient(projectUrl,secretKey,{global:{headers:{Authorization:`Bearer ${bearer}`}},auth:{persistSession:false,autoRefreshToken:false}});
+        const {data:allowed,error:roleError}=await caller.rpc("is_ipuc_admin");
+        if(roleError || !allowed)return json(req,{error:"Sin autorización para modificar otra membresía."},403);
+      }
+      const query=supabaseAdmin.from("church_members").select("id,email,photo_path,auth_user_id");
+      const found=adminMemberId ? await query.eq("id",adminMemberId).maybeSingle() : await query.eq("auth_user_id",user.id).maybeSingle();
+      if(found.error)throw found.error;
+      accountMember=found.data;
+      if(adminMemberId && !accountMember)return json(req,{error:"Membresía no disponible."},404);
+    }
     const decomSync = form.get("decomSync") === "true";
     if (decomSync) {
       const bearer = req.headers.get("Authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
@@ -101,14 +123,16 @@ Deno.serve(async req => {
     const isBaptized = isBaptizedValue === "true";
     const filledValue = String(form.get("filledWithHolySpirit") || "");
     const filledWithHolySpirit = filledValue === "true";
-    const requestChanges = form.get("requestChanges") === "true";
+    const requestChanges = !adminMemberId && (Boolean(accountMember) || form.get("requestChanges") === "true");
     let verifiedEmail = "";
+    let verifiedUserId = "";
     if (requestChanges) {
       const bearer = req.headers.get("Authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
       if (!bearer) return json(req, { error: "Verifica el correo registrado antes de solicitar cambios." }, 401);
       const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(bearer);
       if (authError || !user?.email_confirmed_at || !user.email) return json(req, { error: "La verificación del correo venció. Solicita un código nuevo." }, 401);
       verifiedEmail = user.email.trim().toLowerCase();
+      verifiedUserId = user.id;
     }
     const consentVersion = String(form.get("consentVersion") || "");
     const consent = form.get("consent") === "true" && ["2026-09-v3", "2026-09-v4", "2026-09-v5"].includes(consentVersion);
@@ -152,7 +176,7 @@ Deno.serve(async req => {
       return json(req, { error: "Revisa el nombre, la dirección, el correo y el teléfono." }, 400);
     }
     if (hasChurchRole && (!assignments.length || assignments.length > 20 || assignments.some(item => !item.role || item.role.length > 120 || item.role.includes("|") || !item.committee))) return json(req, { error: "Cada cargo debe tener un comité válido. Puedes registrar hasta 20 cargos o comités." }, 400);
-    if ((hasChurchRole || decomSync || documentType || documentNumber) && (!["CC", "TI", "CE", "PA", "RC", "PPT"].includes(documentType) || !/^[A-Z0-9][A-Z0-9.-]{2,31}$/.test(documentNumber))) {
+    if ((hasChurchRole || decomSync || accountMode || documentType || documentNumber) && (!["CC", "TI", "CE", "PA", "RC", "PPT"].includes(documentType) || !/^[A-Z0-9][A-Z0-9.-]{2,31}$/.test(documentNumber))) {
       return json(req, { error: "Selecciona el tipo de documento e ingresa un número válido." }, 400);
     }
     const dateParts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
@@ -165,9 +189,10 @@ Deno.serve(async req => {
     if (isMinor && (guardianFullName.length < 3 || guardianFullName.length > 140 || !guardianConsent || !minorInformedConsent)) return json(req, { error: "Para una persona menor de edad, completa los datos y las autorizaciones de su representante legal." }, 400);
     if (!["true", "false"].includes(isBaptizedValue) || !["true", "false"].includes(filledValue)) return json(req, { error: "Responde las preguntas de bautismo y Espíritu Santo." }, 400);
     if (!consent || !sensitiveDataConsent) return json(req, { error: "Debes aceptar de forma expresa el tratamiento de datos para crear el registro de membresía." }, 400);
-    if (!(photo instanceof File) || photo.size === 0) return json(req, { error: "Selecciona una foto de rostro para identificarte y generar tu carnet." }, 400);
+    const hasPhoto = photo instanceof File && photo.size > 0;
+    if (!hasPhoto && !accountMember?.photo_path) return json(req, { error: "Selecciona una foto de rostro para identificarte y generar tu carnet." }, 400);
     if (!photoConsent) return json(req, { error: "Debes autorizar el almacenamiento privado de la foto para generar tu carnet." }, 400);
-    if (!["image/jpeg", "image/png", "image/webp"].includes(photo.type) || photo.size > 5 * 1024 * 1024) {
+    if (hasPhoto && (!["image/jpeg", "image/png", "image/webp"].includes((photo as File).type) || (photo as File).size > 5 * 1024 * 1024)) {
       return json(req, { error: "La foto debe ser JPG, PNG o WebP y pesar máximo 5 MB." }, 400);
     }
 
@@ -180,16 +205,19 @@ Deno.serve(async req => {
     if (Number(attempts) > 5) return json(req, { error: "Se alcanzó el límite temporal de registros. Inténtalo de nuevo en 15 minutos." }, 429);
 
     const { data: byDocument, error: documentLookupError } = Boolean(documentNumber)
-      ? await supabaseAdmin.from("church_members").select("id,email").eq("document_type", documentType).eq("document_number", documentNumber).maybeSingle()
+      ? await supabaseAdmin.from("church_members").select("id,email,auth_user_id").eq("document_type", documentType).eq("document_number", documentNumber).maybeSingle()
       : { data: null, error: null };
     if (documentLookupError) throw documentLookupError;
-    let existingMemberId = byDocument?.id || null;
-    let existingMemberEmail = String(byDocument?.email || "").trim().toLowerCase();
+    if(accountMember && byDocument && byDocument.id!==accountMember.id)return json(req,{error:"El documento pertenece a otro registro. Solicita revisión administrativa."},409);
+    let existingMemberId = accountMember?.id || byDocument?.id || null;
+    let existingAccountId = accountMember?.auth_user_id || byDocument?.auth_user_id || null;
+    let existingMemberEmail = String(accountMember?.email || byDocument?.email || "").trim().toLowerCase();
     if (!existingMemberId) {
-      const { data: legacyMatches, error: legacyLookupError } = await supabaseAdmin.from("church_members").select("id,email").eq("email", email).limit(2);
+      const { data: legacyMatches, error: legacyLookupError } = await supabaseAdmin.from("church_members").select("id,email,auth_user_id").eq("email", email).limit(2);
       if (legacyLookupError) throw legacyLookupError;
       if ((legacyMatches || []).length > 1) return json(req, { error: "Encontramos más de un registro anterior con ese correo. Contacta a administración para validar tu identidad." }, 409);
       existingMemberId = legacyMatches?.[0]?.id || null;
+      existingAccountId = legacyMatches?.[0]?.auth_user_id || null;
       existingMemberEmail = String(legacyMatches?.[0]?.email || "").trim().toLowerCase();
     }
     // Another attempt can commit between the initial UUID lookup and this lookup.
@@ -197,25 +225,35 @@ Deno.serve(async req => {
       const {data:confirmed}=await supabaseAdmin.from("church_members").select("id,member_number,registered_by").eq("sync_id",syncId).maybeSingle();
       if(confirmed?.registered_by===staffUserId)return json(req,{ok:true,id:confirmed.id,memberNumber:confirmed.member_number,replayed:true});
     }
-    if (existingMemberId && (email !== existingMemberEmail || (requestChanges && verifiedEmail !== existingMemberEmail))) return json(req, { ok: false, code: "member_email_mismatch", error: "El correo no coincide con el registrado. Contacta a administración para actualizarlo." }, 409);
-    if (existingMemberId && !requestChanges) return json(req, { ok: false, code: "existing_member", error: "Ya existe un registro asociado a este documento." }, 409);
+    if(accountMode && existingMemberId && !accountMember)return json(req,{code:"membership_needs_link",error:"Ya existe una membresía. Vincúlala desde Mi cuenta antes de editarla."},409);
+    if(!accountMode && requestChanges && existingAccountId && existingAccountId!==verifiedUserId)return json(req,{error:"Este registro está vinculado a una cuenta. Inicia sesión con esa cuenta para solicitar cambios."},403);
+    if (!accountMode && existingMemberId && (email !== existingMemberEmail || (requestChanges && verifiedEmail !== existingMemberEmail))) return json(req, { ok: false, code: "member_email_mismatch", error: "El correo no coincide con el registrado. Contacta a administración para actualizarlo." }, 409);
+    if (existingMemberId && !requestChanges && !adminMemberId) return json(req, { ok: false, code: "existing_member", error: "Ya existe un registro asociado a este documento." }, 409);
     if (!existingMemberId && requestChanges) return json(req, { ok: false, code: "member_not_found", error: "No encontramos un registro para actualizar. Envía una inscripción nueva." }, 404);
-    if (existingMemberId && requestChanges) {
+    if (existingMemberId && (requestChanges || adminMemberId)) {
       const { data: pendingRequest, error: pendingLookupError } = await supabaseAdmin.from("member_change_requests").select("id").eq("member_id", existingMemberId).eq("status", "pendiente").maybeSingle();
       if (pendingLookupError) throw pendingLookupError;
       if (pendingRequest) return json(req, { ok: false, code: "pending_change", error: "Ya hay una solicitud de actualización pendiente para este registro." }, 409);
     }
 
     const id = crypto.randomUUID();
-    const extension = photo.type === "image/png" ? "png" : photo.type === "image/webp" ? "webp" : "jpg";
-    photoPath = `${id}/${crypto.randomUUID()}.${extension}`;
-    const { error: uploadError } = await supabaseAdmin.storage.from("membership-photos").upload(photoPath, photo, { contentType: photo.type, upsert: false });
-    if (uploadError) throw uploadError;
+    if(hasPhoto){
+      const file=photo as File;
+      const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+      photoPath = `${id}/${crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabaseAdmin.storage.from("membership-photos").upload(photoPath, file, { contentType: file.type, upsert: false });
+      if (uploadError) throw uploadError;
+    }
+    const baptismDate=String(form.get("baptismDate") || "").trim();
+    if(baptismDate && (!isBaptized || !isValidDate(baptismDate) || baptismDate<birthDate || baptismDate>today)){
+      if(photoPath)await supabaseAdmin.storage.from("membership-photos").remove([photoPath]);
+      return json(req,{error:"Revisa la fecha de bautismo."},400);
+    }
     const memberData = {
       id, full_name: fullName, address, email, phone, has_church_role: hasChurchRole,
       church_role: churchRole, church_committee: churchCommittee, document_type: documentType || null, document_number: documentNumber || null,
-      birth_date: birthDate, is_baptized: isBaptized, baptism_date: null,
-      filled_with_holy_spirit: filledWithHolySpirit, photo_path: photoPath,
+      birth_date: birthDate, is_baptized: isBaptized, baptism_date: baptismDate || null,
+      filled_with_holy_spirit: filledWithHolySpirit, photo_path: photoPath || null,
       guardian_full_name: isMinor ? guardianFullName : null, guardian_consent: isMinor && guardianConsent,
       minor_informed_consent: isMinor && minorInformedConsent,
       photo_consent: true, photo_consent_at: new Date().toISOString(), attendance_consent: attendanceConsent,
@@ -231,7 +269,13 @@ Deno.serve(async req => {
       if (requestError) throw requestError;
       return json(req, { ok: true, changeRequest: true }, 202);
     }
-    const { data, error: insertError } = await supabaseAdmin.from("church_members").insert(memberData).select("id,member_number").single();
+    if(adminMemberId && accountMember){
+      const {id:_id,...updates}=memberData;
+      const {error}=await supabaseAdmin.from("church_members").update({...updates,photo_path:photoPath || accountMember.photo_path,updated_at:new Date().toISOString()}).eq("id",accountMember.id);
+      if(error)throw error;
+      return json(req,{ok:true,adminUpdated:true});
+    }
+    const { data, error: insertError } = await supabaseAdmin.from("church_members").insert({...memberData,...(accountUserId?{auth_user_id:accountUserId}:{})}).select("id,member_number").single();
     if (insertError) throw insertError;
     return json(req, { ok: true, id: data.id, memberNumber: data.member_number }, 201);
   } catch (error) {

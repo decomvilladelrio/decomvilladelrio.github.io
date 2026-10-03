@@ -809,6 +809,70 @@ body.platform-body:not(:has(.earth-hero)):not(:has(.admin-workspace)):not(:has(.
   stroke-width: 1.8;
 }
 
+/* La cuenta es el acceso personal principal: queda junto al cronograma sin competir con la navegación. */
+body.platform-body .platform-account-link {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 15px;
+  border: 1px solid rgba(255, 218, 118, .95);
+  border-radius: 999px;
+  color: #08182b;
+  background: linear-gradient(135deg, #ffe28b, #f2b52d);
+  box-shadow: 0 10px 24px rgba(245, 189, 55, .25), inset 0 1px 0 rgba(255,255,255,.62);
+  font-size: .78rem;
+  font-weight: 950;
+  letter-spacing: .025em;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color .24s ease, background .24s ease, border-color .24s ease, transform .24s ease, box-shadow .24s ease;
+}
+body.platform-body .platform-account-link svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+body.platform-body .platform-account-link:hover,
+body.platform-body .platform-account-link:focus-visible {
+  color: #061322;
+  background: linear-gradient(135deg, #fff1b9, #f6c54e);
+  border-color: #fff1b9;
+  box-shadow: 0 14px 30px rgba(245, 189, 55, .34), inset 0 1px 0 rgba(255,255,255,.72);
+  transform: translateY(-2px);
+}
+body.platform-body .platform-account-link:active { transform: translateY(0) scale(.98); }
+body.platform-body .platform-account-link:focus-visible { outline: 3px solid rgba(0, 159, 218, .55); outline-offset: 3px; }
+
+@media (max-width: 620px) {
+  body.platform-body .platform-top { gap: 8px; }
+  body.platform-body .platform-brand img { width: min(165px, 43vw); height: 52px; }
+  body.platform-body .platform-account-link,
+  body.platform-body .platform-schedule-link {
+    flex: 0 0 42px;
+    width: 42px;
+    min-width: 42px;
+    min-height: 42px;
+    padding: 0;
+    gap: 0;
+  }
+  body.platform-body .platform-account-link span,
+  body.platform-body .platform-schedule-link span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
 body.platform-body:not(:has(.earth-hero)):not(:has(.admin-workspace)):not(:has(.login-card)) .route-view {
   gap: 20px;
   margin-top: 20px;

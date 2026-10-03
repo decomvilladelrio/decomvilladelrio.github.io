@@ -1306,6 +1306,11 @@ const TYPES = {
       await import("/js/member-profile.js?v=20260930-2");
       await import("/js/decom-store.js?v=20260930-1");
       await import("/js/decom-registration.js?v=20260930-1");
+    await import("/js/user-account.js?v=20261003-3");
+      let accountRecovery = /(?:[#&])type=recovery(?:&|$)/.test(location.hash);
+      const accountStyles = document.createElement("link");
+      accountStyles.rel = "stylesheet"; accountStyles.href = "/css/user-account.css?v=20261003-1";
+      document.head.append(accountStyles);
       const membershipStyles = document.createElement("link");
       membershipStyles.rel = "stylesheet"; membershipStyles.href = "/css/membership-decom.css?v=20260930-2";
       document.head.append(membershipStyles);
@@ -1338,8 +1343,8 @@ const TYPES = {
         },
         adminUsername: ADMIN_USER,
         adminEmail: "decomvilladelrio@gmail.com",
-        adminEmails: ["decomvilladelrio@gmail.com", "estebanarango1499@gmail.com", "earangoc@miceas.edu.co"],
-        decomEmails: ["decomvilladelrio@gmail.com", "estebanarango1499@gmail.com", "earangoc@miceas.edu.co"],
+        adminEmails: ["decomvilladelrio@gmail.com", "estebanarango1499@gmail.com"],
+        decomEmails: ["decomvilladelrio@gmail.com", "estebanarango1499@gmail.com"],
         sdkVersion: "12.14.0"
       };
       const SUPABASE_CONFIG = {
@@ -1554,8 +1559,12 @@ const TYPES = {
             <a href="/recursos" data-route-link="recursos">Recursos</a>
             <a href="/membresia" data-route-link="membresia">Membresía</a>
             <a href="/ubicacion" data-route-link="ubicacion">Ubicación</a>
-            <a href="/admin/login" data-login-link>Admin</a>
+            <a href="/admin" data-login-link hidden aria-hidden="true">Administración</a>
           </nav>
+          <a class="platform-account-link" href="/cuenta/" data-account-nav aria-label="Abrir mi cuenta">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.4"></circle><path d="M5.5 19c.8-3 3-4.5 6.5-4.5s5.7 1.5 6.5 4.5"></path></svg>
+            <span data-account-label>Iniciar sesión</span>
+          </a>
           <a class="platform-schedule-link" href="/calendario" data-route-link="calendario" aria-label="Abrir Cronograma">
             <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="16" rx="2"></rect><path d="M8 3v4M16 3v4M3 9h18M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01"></path></svg>
             <span>Cronograma</span>
@@ -1649,13 +1658,21 @@ const TYPES = {
         { day: 6, label: "Sábados", time: "7:00 p. m.", title: "Reunión congregacional", note: "Un espacio para encontrarnos como familia IPUC." },
         { day: 0, label: "Domingos", time: "10:00 a. m.", title: "Reunión congregacional", note: "Un espacio para encontrarnos como familia IPUC." }
       ];
-      if (location.hash) history.replaceState({}, "", location.hash.replace(/^#\/?/, "/") || "/");
+      if (location.hash.startsWith("#/")) history.replaceState({}, "", location.hash.replace(/^#\/?/, "/") || "/");
       renderRoute();
       initializeCloud();
 
       function renderRoute(event) {
+        window.AccountUI.cancel();
         if (event?.type === "hashchange") window.scrollTo({ top: 0, left: 0, behavior: "auto" });
         refreshAdminNav();
+        const accountNav = document.querySelector("[data-account-nav]");
+        if (accountNav) {
+          const accountLabel = accountNav.querySelector("[data-account-label]");
+          if (accountLabel) accountLabel.textContent = cloud.user ? "Mi cuenta" : "Iniciar sesión";
+          else accountNav.textContent = cloud.user ? "Mi cuenta" : "Iniciar sesión";
+          accountNav.setAttribute("aria-label", cloud.user ? "Abrir mi cuenta" : "Iniciar sesión");
+        }
         setNavOpen(false);
         const route = parseRoute();
         document.body.classList.toggle("decom-registration-mode", route.name === "membresia" && route.id === "decom");
@@ -1666,7 +1683,8 @@ const TYPES = {
         if (route.name !== "podcast") document.querySelector(".stream-intro")?.remove();
         document.body.classList.toggle("public-inner-page", route.name !== "inicio" && !["admin", "login"].includes(route.name));
         document.body.classList.toggle("podcast-mode", route.name === "podcast");
-        const routeTitles = { inicio: "Inicio", calendario: "Cronograma", anuncios: "Anuncios", podcast: "Historias que Edifican", recursos: "Recursos", membresia: "Membresía", ubicacion: "Ubicación", admin: "Administración", login: "Iniciar sesión", eventos: "Eventos", archivo: "Archivo" };
+        document.body.classList.toggle("account-mode", route.name === "cuenta");
+        const routeTitles = { inicio: "Inicio", calendario: "Cronograma", anuncios: "Anuncios", podcast: "Historias que Edifican", recursos: "Recursos", membresia: "Membresía", cuenta: "Mi cuenta", ubicacion: "Ubicación", admin: "Administración", login: "Iniciar sesión", eventos: "Eventos", archivo: "Archivo" };
         document.title = `${routeTitles[route.name] || "IPUC Villa del Río"} | IPUC Villa del Río`;
         trackLiveVisitorPage();
         updateActiveNavigation(route.name);
@@ -1680,12 +1698,11 @@ const TYPES = {
         else if (route.name === "recursos") renderPage = renderResourcesPage;
         else if (route.name === "ubicacion") renderPage = renderLocationPage;
         else if (route.name === "membresia") renderPage = route.id === "decom" ? renderDecomRegistration : renderMembershipPage;
+        else if (route.name === "cuenta") renderPage = renderUserAccountPage;
         else if (route.name === "evento") renderPage = () => renderEventDetail(route.id);
         if (route.name === "admin") {
           if (isAdmin()) renderPage = renderAdminPage;
-          else if (isLeader()) renderPage = renderLeaderPage;
-          else if (isDecomMember()) renderPage = renderDecomOnlyPage;
-          else renderPage = renderLoginPage;
+          else renderPage = cloud.user ? renderRestrictedAdminPage : renderLoginPage;
         }
         else if (route.name === "login") renderPage = renderLoginPage;
         renderPage();
@@ -2314,11 +2331,15 @@ const TYPES = {
         return new XMLSerializer().serializeToString(xml.documentElement);
       }
 
-      async function membershipCardBlob(member, format = "png") {
-        if (!member?.photo_path || !member.has_church_role) throw new Error("El carnet requiere foto y un cargo registrado.");
-        const { data, error } = await cloud.storage.from("membership-photos").createSignedUrl(member.photo_path, 600);
-        if (error) throw error;
-        const response = await fetch(data.signedUrl);
+      async function membershipCardBlob(member, format = "png", ownPhotoUrl = "") {
+        if ((!member?.photo_path && !ownPhotoUrl) || !member.has_church_role) throw new Error("El carnet requiere foto y un cargo registrado.");
+        let photoUrl = ownPhotoUrl;
+        if (!photoUrl) {
+          const { data, error } = await cloud.storage.from("membership-photos").createSignedUrl(member.photo_path, 600);
+          if (error) throw error;
+          photoUrl = data.signedUrl;
+        }
+        const response = await fetch(photoUrl, { cache: "no-store" });
         if (!response.ok) throw new Error("No se pudo leer la foto privada del miembro.");
         const card = {
           fullName: member.full_name, memberNumber: member.member_number,
@@ -2353,12 +2374,13 @@ const TYPES = {
         }).catch(() => { view().textContent = "No se pudo abrir el registro local. Recarga para reintentar; no se borraron los pendientes."; });
       }
 
-      function renderMembershipPage(decomMode = false) {
+      function renderMembershipPage(decomMode = false, accountContext = null) {
         const registration = platform.memberCard;
         const card = registration?.hasChurchRole && !registration?.changeRequest ? registration : null;
         view().innerHTML = `${decomMode ? "" : `<section class="page-head"><div><p class="eyebrow">Familia IPUC</p><h1>Registro de membresía</h1><p>Comparte tus datos con la administración de la iglesia para mantener actualizado el registro de membresía.</p></div></section>`}
           ${registration ? `<section class="membership-success"><p class="eyebrow">${registration.changeRequest ? "Actualización pendiente" : "Registro recibido"}</p><h2>${registration.changeRequest ? "Solicitud enviada" : `Gracias, ${escapeHtml(registration.fullName)}`}</h2><p>${registration.changeRequest ? "Tus datos no se han modificado todavía. Un administrador debe revisar y aprobar los cambios para actualizar el registro oficial." : "Tu solicitud quedó pendiente de validación por la iglesia."}</p>${registration.changeRequest ? `<div class="membership-no-card"><strong>Esperando revisión administrativa</strong><p>La iglesia revisará la información antes de aplicarla al registro y al carnet.</p></div>` : card ? `<article class="member-card-preview" aria-label="Vista previa del carnet IPUC">${card.svgUrl ? `<img src="${escapeHtml(card.svgUrl)}" alt="Carnet de ${escapeHtml(card.fullName)} con cargo ${escapeHtml(card.churchRole)}">` : `<div class="member-card-placeholder">Carnet listo para descargar</div>`}</article><p class="member-card-note">El carnet se genera solo para quien declaró un cargo. Tu carnet se prepara en este dispositivo; los datos y la foto no se descargan desde el registro administrativo.</p><div class="member-card-downloads"><button class="primary-link" type="button" data-download-member-card="png">Descargar carnet</button><button class="small-action" type="button" data-download-member-card="svg">Descargar editable (SVG)</button></div><p class="member-form-status" data-member-status role="status" aria-live="polite"></p>` : `<div class="membership-no-card"><strong>Registro guardado</strong><p>Como indicaste que no tienes un cargo, no se generó un carnet.</p></div>`}</section>` : `<form class="membership-form" id="membershipForm" novalidate><div class="membership-form-heading"><span>01</span><div><h2>Tus datos</h2><p>La información de este registro solo la consultará el equipo administrativo autorizado.</p></div></div><div class="membership-fields"><label>Nombre completo<input name="fullName" autocomplete="name" required maxlength="140"></label><label>Dirección de residencia<input name="address" autocomplete="street-address" required maxlength="240"></label><label>Correo electrónico<input name="email" type="email" autocomplete="email" required maxlength="254"></label><label>Teléfono<input name="phone" type="tel" autocomplete="tel" required maxlength="32"></label><label class="member-photo-field">Foto de rostro para identificación y control de membresía<input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required><small>JPG, PNG o WebP · máximo 5 MB. Se guarda de forma privada. La foto no se publica.</small><img data-member-photo-preview alt="Vista previa de tu foto" hidden></label><fieldset class="member-role-question"><legend>¿Tienes un cargo en la iglesia?</legend><div class="member-role-options"><label><input name="hasChurchRole" type="radio" value="si" required> Sí</label><label><input name="hasChurchRole" type="radio" value="no" required> No</label></div></fieldset><label class="member-role-field" data-member-role-field hidden>¿Cuál es tu cargo?<input name="churchRole" maxlength="120" placeholder="Ej. Presidente DECOM" disabled></label><label class="member-committee-field" data-member-committee-field hidden>¿A qué comité perteneces?<select name="churchCommittee" disabled><option value="">Selecciona tu comité</option>${MEMBERSHIP_COMMITTEES.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("")}<option value="__otro__">Otro comité</option></select></label><label class="member-custom-committee-field" data-member-custom-committee-field hidden>Nombre del comité<input name="customChurchCommittee" maxlength="80" placeholder="Escribe el nombre del comité" disabled></label></div><label class="member-consent"><input name="sensitiveDataConsent" type="checkbox" required><span>Autorizo de forma previa, expresa e informada a IPUC Villa del Río a tratar mis datos identificativos, fecha de nacimiento, información sobre bautismo y llenura del Espíritu Santo y mi vinculación como miembro, para gestionar esta solicitud y mi membresía. Estos datos religiosos son sensibles y solo serán consultados por administración autorizada. Esta autorización no es necesaria para asistir a los cultos. Podré conocer, actualizar, rectificar o solicitar la supresión de mis datos o revocar esta autorización escribiendo a <a href="mailto:decomvilladelrio@gmail.com">decomvilladelrio@gmail.com</a>.</span></label><label class="member-consent"><input name="photoConsent" type="checkbox" required><span>Autorizo expresamente el almacenamiento privado de mi fotografía para identificarme y elaborar el carnet de membresía. Esta autorización no permite publicar la foto en anuncios o material promocional; para eso se solicitará permiso aparte.</span></label><label class="member-consent"><input name="attendanceConsent" type="checkbox"><span>Opcional: autorizo registrar mi asistencia a eventos de la iglesia para control interno. Puedo registrarme sin activar esta función.</span></label><p class="member-form-status" data-member-status role="status" aria-live="polite"></p><button class="primary-link" type="submit">Enviar registro</button></form>`}`;
         const form = document.getElementById("membershipForm");
+        if (!decomMode && !accountContext) view().querySelector(".page-head")?.insertAdjacentHTML("beforeend", '<a class="small-action" href="/cuenta/">Iniciar sesión · Mi membresía</a>');
         const memberCardPlaceholder = view().querySelector(".member-card-placeholder");
         if (memberCardPlaceholder && card && !card.photoDataUrl) memberCardPlaceholder.textContent = "Carnet sin vista previa en este dispositivo";
         if (card?.photoPreparationWarning) {
@@ -2384,6 +2406,7 @@ const TYPES = {
           profileFields.innerHTML = `<label>Fecha de nacimiento<input name="birthDate" type="date" required></label><fieldset class="member-role-question"><legend>¿Estás bautizado?</legend><div class="member-role-options"><label><input name="isBaptized" type="radio" value="true" required> Sí</label><label><input name="isBaptized" type="radio" value="false" required> No</label></div></fieldset><fieldset class="member-role-question"><legend>¿Eres lleno del Espíritu Santo?</legend><div class="member-role-options"><label><input name="filledWithHolySpirit" type="radio" value="true" required> Sí</label><label><input name="filledWithHolySpirit" type="radio" value="false" required> No</label></div></fieldset><section class="member-guardian-fields" data-member-guardian-fields hidden><h3>Autorización para menores de edad</h3><p>Al registrar a una persona menor de 18 años, debe completar esta sección su padre, madre o representante legal.</p><label>Nombre completo del padre, madre o representante<input name="guardianFullName" maxlength="140" autocomplete="name" disabled></label><label class="member-consent"><input name="guardianConsent" type="checkbox" disabled><span>Como padre, madre o representante legal, autorizo el tratamiento de los datos personales y sensibles del menor para gestionar su registro de membresía.</span></label><label class="member-consent"><input name="minorInformedConsent" type="checkbox" disabled><span>He informado al menor sobre este registro y he tenido en cuenta su opinión.</span></label></section>`;
           form.querySelector(".member-role-question").insertAdjacentElement("beforebegin", profileFields);
           const birthDateInput = profileFields.querySelector('[name="birthDate"]');
+          if (accountContext) profileFields.insertAdjacentHTML("beforeend", '<label>Fecha de bautismo (si la conoces)<input name="baptismDate" type="date"></label>');
           const todayInBogota = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
           birthDateInput.max = todayInBogota();
           const guardianFields = profileFields.querySelector("[data-member-guardian-fields]");
@@ -2439,7 +2462,7 @@ const TYPES = {
             documentFields.hidden = false;
             documentFields.querySelectorAll("select, input").forEach(input => {
               input.disabled = false;
-              input.required = hasRole || decomMode;
+              input.required = hasRole || decomMode || Boolean(accountContext);
             });
             assignmentFields.querySelector("[data-add-member-assignment]").disabled = !hasRole || assignmentList.children.length >= 20;
             assignmentFields.querySelector("[data-member-assignment-list]").querySelectorAll("[data-remove-member-assignment]").forEach(button => { button.disabled = !hasRole; });
@@ -2476,10 +2499,11 @@ const TYPES = {
             const selectedPhoto = photoInput.files?.[0];
             const hasRole = form.querySelector('[name="hasChurchRole"]:checked')?.value === "si";
             const photoConsent = form.elements.namedItem("photoConsent").checked;
-            if (!selectedPhoto || !selectedPhoto.size) { status.textContent = "Selecciona una foto para completar el registro."; submit.disabled = false; return; }
+            const keepExistingPhoto = Boolean(accountContext?.member?.photo_url || accountContext?.member?.photo_path || accountContext?.member?.photo_preview_url);
+            if ((!selectedPhoto || !selectedPhoto.size) && !keepExistingPhoto) { status.textContent = "Selecciona una foto para completar el registro."; submit.disabled = false; return; }
             if (!photoConsent) { status.textContent = "Debes autorizar el almacenamiento privado de la foto."; submit.disabled = false; return; }
-            if (!["image/jpeg", "image/png", "image/webp"].includes(selectedPhoto.type)) { status.textContent = "Elige una foto JPG, PNG o WebP."; submit.disabled = false; return; }
-            if (selectedPhoto.size > 5 * 1024 * 1024) { status.textContent = "La foto supera el máximo permitido de 5 MB."; submit.disabled = false; return; }
+            if (selectedPhoto?.size && !["image/jpeg", "image/png", "image/webp"].includes(selectedPhoto.type)) { status.textContent = "Elige una foto JPG, PNG o WebP."; submit.disabled = false; return; }
+            if (selectedPhoto?.size > 5 * 1024 * 1024) { status.textContent = "La foto supera el máximo permitido de 5 MB."; submit.disabled = false; return; }
             data.set("consent", String(form.elements.namedItem("sensitiveDataConsent").checked));
             data.set("sensitiveDataConsent", String(form.elements.namedItem("sensitiveDataConsent").checked));
             data.set("photoConsent", String(photoConsent));
@@ -2513,7 +2537,7 @@ const TYPES = {
             }
             let photoDataUrl = "";
             let photoPreparationWarning = "";
-            if (hasRole) {
+            if (hasRole && !accountContext) {
               try { photoDataUrl = await prepareMemberCardPhoto(selectedPhoto); }
               catch (error) {
                 photoPreparationWarning = "La foto se enviará y guardará, pero este dispositivo no pudo preparar la vista del carnet. La iglesia podrá generarlo desde administración.";
@@ -2522,10 +2546,17 @@ const TYPES = {
             }
             try {
               let verifiedAccessToken = "";
+              if (accountContext) {
+                const { data: sessionData, error: sessionError } = await cloud.app.auth.getSession();
+                if (sessionError || !sessionData.session) throw new Error("Inicia sesión nuevamente para guardar los cambios.");
+                verifiedAccessToken = sessionData.session.access_token;
+                data.set("accountMode", "true");
+                if (accountContext.adminMemberId) data.set("adminMemberId", accountContext.adminMemberId);
+              }
               const sendRegistration = () => fetch(`${SUPABASE_CONFIG.url}/functions/v1/member-registration`, { method: "POST", headers: { apikey: SUPABASE_CONFIG.publishableKey, ...(verifiedAccessToken ? { Authorization: `Bearer ${verifiedAccessToken}` } : {}) }, body: data });
               let response = await sendRegistration();
               let result = await response.json();
-              if (response.status === 409 && result.code === "existing_member") {
+              if (!accountContext && response.status === 409 && result.code === "existing_member") {
                 const wantsChanges = window.confirm("Ya existe un registro de membresía con este documento. ¿Deseas enviar una solicitud para actualizar tus datos? Los cambios solo se aplicarán después de que administración los revise y apruebe.");
                 if (!wantsChanges) { status.textContent = "No se hicieron cambios en tu registro."; submit.disabled = false; return; }
                 if (!cloud.supabaseModule) throw new Error("La verificación por correo no está disponible en este momento. Inténtalo más tarde.");
@@ -2545,6 +2576,12 @@ const TYPES = {
                 result = await response.json();
               }
               if (!response.ok || !result.ok) throw new Error(result.error || "No se pudo completar el registro.");
+              if (accountContext) {
+                platform.memberCard = null;
+                view().innerHTML = `<section class="account-panel"><h1>${result.changeRequest ? "Actualización enviada" : "Membresía guardada"}</h1><p>${result.changeRequest ? "Administración revisará los cambios antes de actualizar el registro y el carné oficiales." : "La información quedó guardada correctamente."}</p><a class="primary-link" href="${accountContext.adminMemberId ? "/admin" : "/cuenta/membresia"}">Volver a ${accountContext.adminMemberId ? "administración" : "mi cuenta"}</a></section>`;
+                if (accountContext.adminMemberId) void loadMembershipAdmin();
+                return;
+              }
               if (result.changeRequest) {
                 platform.memberCard = { fullName: String(data.get("fullName")).trim(), changeRequest: true };
                 renderMembershipPage();
@@ -2557,6 +2594,16 @@ const TYPES = {
           });
           syncRoleField();
           window.MemberProfile.wizard(form);
+          if (accountContext) {
+            window.AccountUI.fill(form, accountContext.member || accountContext.initial || {});
+            view().querySelector(".page-head h1").textContent = accountContext.member ? "Actualizar membresía" : "Completar mi membresía";
+            view().querySelector(".page-head p:last-child").textContent = accountContext.adminMemberId ? "Cambios administrativos sobre el registro oficial." : "Tu registro queda asociado a tu cuenta. Los cambios se revisarán antes de aplicarse.";
+            view().querySelector(".page-head").insertAdjacentHTML("beforeend", `<a class="small-action" href="${accountContext.adminMemberId ? "/admin" : "/cuenta/"}">Volver</a>`);
+            form.querySelector('[type="submit"]').textContent = accountContext.adminMemberId ? "Guardar cambios" : accountContext.member ? "Enviar actualización" : "Guardar mi membresía";
+            const documentInputs = form.querySelector(".member-document-fields");
+            documentInputs.hidden = false;
+            documentInputs.querySelectorAll("input,select").forEach(input => { input.disabled = false; input.required = true; });
+          }
           if (decomMode) window.DecomRegistration.bindForm(form);
         }
         view().querySelectorAll("[data-download-member-card]").forEach(download => {
@@ -2592,7 +2639,7 @@ const TYPES = {
       }
 
       function parseRoute() {
-        const raw = location.pathname.replace(/^\//, "") || (location.hash || "#/inicio").replace(/^#\/?/, "");
+        const raw = location.pathname.replace(/^\//, "") || (location.hash.startsWith("#/") ? location.hash.replace(/^#\/?/, "") : "inicio");
         const parts = raw.split("/").filter(Boolean);
         const requestedName = parts[0] || "inicio";
         const name = requestedName === "inicioquiero" ? "inicio" : requestedName;
@@ -2618,7 +2665,7 @@ const TYPES = {
           await import("/js/vendor/supabase-2.57.4.js");
           const supabase = window.supabase;
           cloud.supabaseModule = supabase;
-          cloud.app = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.publishableKey);
+          cloud.app = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.publishableKey, { auth: { storage: window.AccountUI.storage } });
           cloud.auth = cloud.app;
           cloud.db = cloud.app;
           cloud.storage = cloud.app.storage;
@@ -2647,7 +2694,8 @@ const TYPES = {
             setupPrivateCloudListeners();
             refreshAdminNav();
             const route = parseRoute();
-            if (route.name === "admin" || route.name === "login") scheduleRouteRender();
+            if (route.name === "cuenta" || route.name === "login") setTimeout(renderRoute, 0);
+            else if (route.name === "admin") scheduleRouteRender();
           });
           ["events", "announcements", "reflections", "podcasts", "settings"].forEach(collectionName => {
             cloud.unsubscribers.push(supabaseDbAdapter.onSnapshot(collectionName, snapshot => {
@@ -2674,7 +2722,8 @@ const TYPES = {
           });
         } catch (error) {
           cloud.error = `No se pudo iniciar Supabase: ${error.message}`;
-          scheduleRouteRender();
+          if (["cuenta", "login"].includes(parseRoute().name)) view().innerHTML = '<section class="account-panel"><h1>Mi cuenta</h1><p role="alert">No se pudo conectar. Comprueba tu conexión y vuelve a cargar la página.</p><button class="primary-link" onclick="location.reload()">Volver a intentar</button></section>';
+          else scheduleRouteRender();
         }
       }
 
@@ -2691,7 +2740,10 @@ const TYPES = {
           client.auth.getSession()
             .then(({ data }) => emit(data.session))
             .catch(() => emit(null));
-          const { data } = client.auth.onAuthStateChange((_event, session) => emit(session));
+          const { data } = client.auth.onAuthStateChange((_event, session) => {
+            if (_event === "PASSWORD_RECOVERY") { accountRecovery = true; setTimeout(renderRoute, 0); }
+            emit(session);
+          });
           return () => data.subscription.unsubscribe();
         },
         async signInWithEmailAndPassword(client, email, password) {
@@ -3273,23 +3325,24 @@ const TYPES = {
       }
 
       function renderLoginPage() {
-        view().innerHTML = `
-          <section class="login-card glass">
-            <div><p class="eyebrow">Área privada</p><h1>Acceso de equipo</h1><p>Administradores y líderes de comité pueden entrar con su correo autorizado.</p>${cloudNotice()}</div>
-            <form id="loginForm" class="form-grid" novalidate>
-              <label>Correo electrónico<input id="loginUser" type="email" autocomplete="username" required></label>
-              <label>Contraseña<input id="loginPass" type="password" autocomplete="current-password" required></label>
-              <button class="primary-link" id="loginSubmit" type="submit">Iniciar sesión</button>
-              <p class="form-message" id="loginMessage"></p>
-            </form>
-          </section>
-        `;
-        document.getElementById("loginForm").onsubmit = event => {
-          event.preventDefault();
-          const user = document.getElementById("loginUser").value.trim();
-          const pass = document.getElementById("loginPass").value.trim();
-          signInAdmin(user, pass);
-        };
+        renderUserAccountPage({ name: "cuenta", id: "" });
+      }
+
+      function renderRestrictedAdminPage() {
+        view().innerHTML = '<section class="account-panel"><h1>Administración restringida</h1><p>Esta sección está disponible únicamente para las cuentas administrativas autorizadas.</p><div class="account-actions"><a class="primary-link" href="/cuenta/">Volver a mi cuenta</a><button class="small-action" type="button" data-signout-restricted>Cerrar sesión</button></div></section>';
+        view().querySelector("[data-signout-restricted]")?.addEventListener("click", async () => {
+          await cloud.app?.auth?.signOut();
+          cloud.user = null;
+          renderRoute();
+        });
+      }
+
+      function renderUserAccountPage(accountRoute = parseRoute()) {
+        window.AccountUI.render({root:view(), client:cloud.app, config:SUPABASE_CONFIG, route:accountRoute,
+          recovery:accountRecovery, clearRecovery:()=>{accountRecovery=false;}, lock:()=>window.DecomStore?.lock(),
+          navigate:path=>{history.pushState({},"",path);renderRoute();}, cardBlob:membershipCardBlob,
+          editForm:(member,initial)=>{platform.memberCard=null;renderMembershipPage(false,{member,initial});}
+        }).catch(()=>{view().innerHTML='<section class="account-panel"><h1>Mi cuenta</h1><p>No se pudo abrir tu cuenta. Revisa la conexión y vuelve a intentarlo.</p><a href="/cuenta/">Volver a intentar</a></section>';});
       }
 
       async function signInAdmin(user, pass) {
@@ -4270,6 +4323,27 @@ const TYPES = {
           memberTools.insertBefore(label, memberResultCount || null);
         }
         const talentFilters = [["Área de interés", "support_interests"], ["Disponibilidad", "availability"], ["Comité actual", "church_committee"], ["Cargo actual", "church_role"], ["Estudios", "education_level"]];
+        if (isAdmin()) {
+          view().querySelectorAll(".member-admin-row[data-member-id]").forEach(row => {
+            const member = platform.members.find(item => item.id === row.dataset.memberId);
+            const account = (platform.memberAccounts || []).find(item => item.id === member?.auth_user_id);
+            const accountFact = document.createElement("span");
+            accountFact.innerHTML = `<small>Cuenta vinculada</small><strong>${escapeHtml(account?.email || (member?.auth_user_id ? member.auth_user_id : "Sin vincular"))}</strong>${account ? `<small>Acceso: ${escapeHtml(account.providers.join(" · "))} · último ingreso: ${escapeHtml(account.last_sign_in_at ? new Date(account.last_sign_in_at).toLocaleString("es-CO") : "Sin ingreso")}</small>` : ""}`;
+            row.querySelector(".member-profile-facts")?.append(accountFact);
+            const edit = document.createElement("button"); edit.type = "button"; edit.className = "small-action"; edit.textContent = "Editar ficha completa";
+            edit.onclick = () => {platform.memberCard=null;renderMembershipPage(false,{member,adminMemberId:member.id});};
+            row.querySelector(".member-admin-actions")?.prepend(edit);
+          });
+          view().querySelectorAll("[data-account-admin-link]").forEach(button => {
+            button.onclick = runAdminAction(async () => {
+              const row=button.closest("[data-account-id]"),memberId=row.querySelector("select").value;
+              if(!memberId)throw new Error("Selecciona la membresía revisada por administración.");
+              if(!confirm("¿Vincular esta cuenta verificada con la membresía seleccionada? Confirma que ambas pertenecen a la misma persona."))return;
+              await window.AccountUI.api({client:cloud.app,config:SUPABASE_CONFIG},{action:"admin-link",userId:row.dataset.accountId,memberId});
+              await loadMembershipAdmin();
+            });
+          });
+        }
         if (memberTools) {
           memberSearch.placeholder = "Buscar habilidad, profesión o persona…";
           memberTools.insertAdjacentHTML("beforebegin", '<h3>Talento y servicio</h3><p>Los intereses declarados no asignan cargos automáticamente.</p><a class="small-action" href="/membresia/decom/">Registro DECOM sin conexión</a>');
@@ -4338,7 +4412,7 @@ const TYPES = {
             if (!committees.length || committees.some(value => !value) || !roles.length || roles.some(value => !value)) throw new Error("Escribe un comité y un cargo por cada asignación. Para varios, sepáralos con | y conserva el mismo orden.");
             if (committees.length !== roles.length) throw new Error("La cantidad de comités y cargos debe coincidir; cada cargo se guarda con su comité en el mismo orden.");
             if (committees.some(value => value.length > 80) || roles.some(value => value.length > 120)) throw new Error("Cada comité admite hasta 80 caracteres y cada cargo hasta 120.");
-            const { error } = await cloud.db.from("church_members").update({ church_committee: committees.join(" | "), church_role: roles.join(" | "), updated_at: new Date().toISOString() }).eq("id", row.dataset.memberId);
+            const { error } = await cloud.db.from("church_members").update({ church_committee: committees.join(" | "), church_role: roles.join(" | "), church_assignments:roles.map((role,i)=>({role,committee:committees[i]})), updated_at: new Date().toISOString() }).eq("id", row.dataset.memberId);
             if (error) throw error;
             await loadMembershipAdmin();
           });
@@ -5239,10 +5313,11 @@ const TYPES = {
       async function loadMembershipAdmin() {
         if (!isAdmin() || !cloud.db) return;
         try {
-          const [members, attendance, changes] = await Promise.all([
+          const [members, attendance, changes, accounts] = await Promise.all([
             cloud.db.from("church_members").select("*").order("created_at", { ascending: false }),
             cloud.db.from("member_attendance").select("*").order("attended_at", { ascending: false }),
-            cloud.db.from("member_change_requests").select("*").eq("status", "pendiente").order("created_at", { ascending: false })
+            cloud.db.from("member_change_requests").select("*").eq("status", "pendiente").order("created_at", { ascending: false }),
+            cloud.db.from("account_profiles").select("*").order("created_at", { ascending: false })
           ]);
           if (members.error) throw members.error;
           if (attendance.error) throw attendance.error;
@@ -5250,6 +5325,7 @@ const TYPES = {
           platform.members = members.data || [];
           platform.memberAttendance = attendance.data || [];
           platform.memberChangeRequests = changes.data || [];
+          platform.memberAccounts = accounts.data || [];
           const photoPaths = [...new Set([...platform.members, ...platform.memberChangeRequests].map(member => member.photo_path).filter(Boolean))];
           if (photoPaths.length) {
             const { data: signedPhotos, error: signedPhotoError } = await cloud.storage.from("membership-photos").createSignedUrls(photoPaths, 600);
@@ -5430,6 +5506,14 @@ const TYPES = {
         if (status) status.textContent = `Listado Excel (CSV) descargado (${members.length} miembros). Para fotos, descarga también el directorio HTML.`;
       }
 
+      function renderAccountAdminDirectory() {
+        const users = platform.memberAccounts || [], members = platform.members || [];
+        return `<details class="member-directory-folder"><summary>Gestión de usuarios <span>${users.length}</span></summary><p>Una cuenta por persona. Revisa la identidad antes de vincular un registro anterior; los permisos de equipo se administran en las herramientas existentes.</p><div class="account-user-list">${users.map(account=>{
+          const member=members.find(item=>item.auth_user_id===account.id);
+          return `<article class="account-user-row" data-account-id="${escapeHtml(account.id)}"><strong>${escapeHtml(account.display_name || account.email)}</strong><small>${escapeHtml(account.email)} · ${account.email_verified ? "Correo verificado" : "Sin verificar"}</small><small>ID: ${escapeHtml(account.id)} · accesos: ${escapeHtml(account.providers.join(" · "))}</small><small>Último acceso: ${escapeHtml(account.last_sign_in_at ? new Date(account.last_sign_in_at).toLocaleString("es-CO") : "Sin acceso")}</small>${member?`<small>Membresía: ${escapeHtml(member.full_name)} · ${escapeHtml(member.status)} · ${member.has_church_role ? "Servidor" : "Miembro"}</small><small>Comité: ${escapeHtml(member.church_committee || "Sin comité")} · cargo: ${escapeHtml(member.church_role || "Sin cargo")} · carné: ${member.has_church_role&&member.photo_path ? (member.status==="activo"?"Disponible":"Pendiente de activación") : "Sin generar"}</small>`:`<div class="account-admin-link"><select aria-label="Membresía para vincular con ${escapeHtml(account.email)}"><option value="">Selecciona una membresía sin cuenta</option>${members.filter(m=>!m.auth_user_id).map(m=>`<option value="${escapeHtml(m.id)}">${escapeHtml(m.full_name)} · ${escapeHtml(m.member_number)}</option>`).join("")}</select><button type="button" class="small-action" data-account-admin-link ${account.email_verified?"":"disabled"}>Vincular tras revisión</button></div>`}</article>`;
+        }).join("") || '<p>Todavía no hay cuentas registradas.</p>'}</div></details>`;
+      }
+
       function renderMembershipAdminModule() {
         const members = platform.members || [];
         const counts = { pendiente: 0, activo: 0, inactivo: 0 };
@@ -5440,6 +5524,7 @@ const TYPES = {
           <div class="member-admin-stats"><span><strong>${members.length}</strong>Total</span><span><strong>${counts.pendiente}</strong>Pendientes</span><span><strong>${counts.activo}</strong>Activos</span><span><strong>${counts.inactivo}</strong>Inactivos</span></div>
           <div class="member-export-actions"><div><strong>Directorio administrativo</strong><small>Se actualiza con los registros guardados. La descarga contiene información privada.</small></div><button type="button" class="small-action" data-export-members-csv>Descargar listado para Excel (CSV)</button><button type="button" class="small-action" data-export-members-photos>Descargar directorio con fotos</button><p data-member-export-status role="status" aria-live="polite"></p></div>
           ${renderMemberChangeQueue()}
+          ${renderAccountAdminDirectory()}
           <div class="member-directory-tools"><label>Buscar miembro<input type="search" data-member-search placeholder="Nombre, correo, documento o cargo" value="${escapeHtml(platform.memberSearch || "")}"></label><label>Estado<select data-member-filter-status><option value="todos" ${platform.memberStatusFilter === "todos" ? "selected" : ""}>Todos los estados</option><option value="pendiente" ${platform.memberStatusFilter === "pendiente" ? "selected" : ""}>Pendiente</option><option value="activo" ${platform.memberStatusFilter === "activo" ? "selected" : ""}>Activo</option><option value="inactivo" ${platform.memberStatusFilter === "inactivo" ? "selected" : ""}>Inactivo</option></select></label><span data-member-result-count aria-live="polite">${members.length} ${members.length === 1 ? "persona" : "personas"}</span></div>
           <label class="member-event-select">Evento para registrar asistencia<select data-member-event><option value="">Selecciona un evento</option>${events.map(event => `<option value="${escapeHtml(event.id)}">${escapeHtml(formatDateShort(event.date))} · ${escapeHtml(event.title)}</option>`).join("")}</select></label>
           <datalist id="membershipCommitteeOptions">${MEMBERSHIP_COMMITTEES.map(name => `<option value="${escapeHtml(name)}"></option>`).join("")}</datalist><div class="member-directory-tree">${(() => {
@@ -5726,23 +5811,15 @@ const TYPES = {
       function refreshAdminNav() {
         const link = document.querySelector("[data-login-link]");
         if (!link) return;
+        link.hidden = true;
+        link.setAttribute("aria-hidden", "true");
         if (isAdmin()) {
           link.textContent = "Administracion";
           link.href = "/admin";
+          link.hidden = false;
+          link.removeAttribute("aria-hidden");
           return;
         }
-        if (isLeader()) {
-          link.textContent = "Espacio líder";
-          link.href = "/admin";
-          return;
-        }
-        if (isDecomMember()) {
-          link.textContent = "DECOM";
-          link.href = "/admin";
-          return;
-        }
-        link.textContent = "Admin";
-        link.href = "/admin/login";
       }
 
       function isAdmin() {
@@ -6003,7 +6080,7 @@ const TYPES = {
 
       let routeRenderQueued = false;
       function scheduleRouteRender() {
-        if (parseRoute().name === "membresia") return;
+        if (["membresia", "cuenta", "login"].includes(parseRoute().name)) return;
         if (routeRenderQueued) return;
         routeRenderQueued = true;
         const flush = () => {
