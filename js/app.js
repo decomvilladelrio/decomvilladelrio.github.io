@@ -4746,7 +4746,12 @@ const TYPES = {
         const id = document.getElementById("materialSelect").value;
         const event = platformEventById(id);
         if (!event) return alert("Selecciona primero un evento.");
-        const saved = { ...(APP_STATE.events[id] || {}), id };
+        // Scheduled events may exist only in the calendar, not yet in Supabase.
+        // Validate their metadata before uploading and include it in the first save.
+        const title = String(event.title || "").trim();
+        const date = String(event.date || "").trim();
+        if (!title || !date) return alert("El evento seleccionado no tiene nombre o fecha válidos. Revisa el evento antes de subir archivos.");
+        const saved = { ...(APP_STATE.events[id] || {}), id, title, date, type: event.type, custom: Boolean(event.custom) };
         saved.invitations = { ...(event.invitations || {}), ...(saved.invitations || {}) };
         saved.gallery = [...(event.gallery || [])];
         saved.attachments = [...(event.attachments || [])];
@@ -5255,6 +5260,9 @@ const TYPES = {
       }
 
       function eventImage(event) {
+        // An administrator's uploaded image takes precedence over committee defaults.
+        if (event.image && isImage(event.image)) return assetSource(event.image, "display");
+        if (event.invitations?.main && isImage(event.invitations.main)) return assetSource(event.invitations.main, "display");
         if (isJovenesCulto(event)) return "/assets/culto-jovenes.png?v=20260907-1";
         if (isMisionesCulto(event)) return "/assets/culto-misiones.png?v=20260907-1";
         if (isObraSocialCulto(event)) return "/assets/culto-obra-social.png?v=20260907-1";
@@ -5266,8 +5274,6 @@ const TYPES = {
         if (isDamasDorcasEvent(event)) return "/assets/culto-damas-dorcas.png?v=20260907-2";
         if (isCaballerosEvent(event)) return "/assets/culto-caballeros.png";
         if (isEvangelismoEvent(event)) return "/assets/culto-evangelismo.png?v=20260907-1";
-        if (event.image && isImage(event.image)) return assetSource(event.image, "display");
-        if (event.invitations?.main && isImage(event.invitations.main)) return assetSource(event.invitations.main, "display");
         if (isRegularSundayWorship(event)) return DEFAULT_SUNDAY_INVITATION.url;
         return autoImage(event.type, event.autoStyle, event.title);
       }
