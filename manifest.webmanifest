@@ -2,11 +2,19 @@
   "name": "IPUC Villa del Río",
   "short_name": "IPUC Villa del Río",
   "description": "Información, recursos, cultos y actividades de la IPUC Villa del Río.",
-  "start_url": "/#/inicio",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display_override": ["standalone", "minimal-ui"],
   "display": "standalone",
   "background_color": "#F4FAFC",
   "theme_color": "#00338D",
   "lang": "es-CO",
+  "shortcuts": [
+    { "name": "Mi cuenta", "url": "/cuenta/" },
+    { "name": "Recursos", "url": "/recursos/" },
+    { "name": "Registro DECOM", "url": "/membresia/decom/" }
+  ],
   "icons": [
     {
       "src": "/assets/favicon.png",

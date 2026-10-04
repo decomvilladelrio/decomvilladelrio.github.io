@@ -1314,7 +1314,6 @@ const TYPES = {
       const membershipStyles = document.createElement("link");
       membershipStyles.rel = "stylesheet"; membershipStyles.href = "/css/membership-decom.css?v=20260930-2";
       document.head.append(membershipStyles);
-      let deferredInstallPrompt = null;
       APP_STATE.events = APP_STATE.events || {};
       APP_STATE.announcements = APP_STATE.announcements || DEFAULT_ANNOUNCEMENTS;
       APP_STATE.reflections = APP_STATE.reflections || {};
@@ -1574,6 +1573,7 @@ const TYPES = {
         <footer class="platform-footer glass">
           <span><strong>IPUC Villa del Río</strong><small>Un lugar para mantenernos conectados.</small></span>
           <a href="/calendario">Ver calendario</a>
+          <a href="/instalar/" target="_self">Instalar app</a>
         </footer>
         <div class="media-layer" id="platformMedia" aria-hidden="true"></div>
         <div class="upload-progress" id="uploadProgress" hidden role="status" aria-live="polite"><div class="upload-progress-head"><strong data-upload-progress-label>Preparando archivo…</strong><b data-upload-progress-percent>0%</b></div><div class="upload-progress-track"><span data-upload-progress-bar></span></div><small data-upload-progress-detail></small></div>
@@ -1631,16 +1631,7 @@ const TYPES = {
         }
       });
       window.addEventListener("ipuc-state-updated", renderRoute);
-      window.addEventListener("beforeinstallprompt", event => {
-        event.preventDefault();
-        deferredInstallPrompt = event;
-        if (parseRoute().name !== "membresia") renderRoute();
-      });
-      window.addEventListener("appinstalled", () => {
-        deferredInstallPrompt = null;
-        if (parseRoute().name !== "membresia") renderRoute();
-      });
-      if ("serviceWorker" in navigator) navigator.serviceWorker.register("/service-worker.js?v=20260930-decom-2").catch(() => {});
+      if ("serviceWorker" in navigator) navigator.serviceWorker.register("/service-worker.js?v=20261003-mobile-1").catch(() => {});
       setupSiteLoader();
       setupChurchMusic();
       loadDriveMusic();
