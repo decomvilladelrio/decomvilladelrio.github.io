@@ -1306,7 +1306,7 @@ const TYPES = {
       await import("/js/member-profile.js?v=20260930-2");
       await import("/js/decom-store.js?v=20260930-1");
       await import("/js/decom-registration.js?v=20260930-1");
-    await import("/js/user-account.js?v=20261003-4");
+    await import("/js/user-account.js?v=20261003-5");
       let accountRecovery = /(?:[#&])type=recovery(?:&|$)/.test(location.hash);
       const accountStyles = document.createElement("link");
       accountStyles.rel = "stylesheet"; accountStyles.href = "/css/user-account.css?v=20261003-1";
@@ -2287,13 +2287,44 @@ const TYPES = {
 
         const documentLabels = { CC: "C.C.", TI: "T.I.", CE: "C.E.", PA: "Pasaporte", RC: "R.C.", PPT: "P.P.T." };
         const documentText = `${documentLabels[member.documentType] || member.documentType} ${member.documentNumber}`;
-        [[name, member.fullName, 162.06, 10], [code, documentText, 173.56, 8], [role, member.churchRole, 195.35, 9]].forEach(([node, value, y, baseSize]) => {
+        const roles = String(member.churchRole || "").split("|").map(value => value.trim());
+        const committees = String(member.churchCommittee || "").split("|").map(value => value.trim());
+        const assignments = member.churchAssignments?.length ? member.churchAssignments : roles.map((value, index) => ({ role: value, committee: committees[index] || (committees.length === 1 ? committees[0] : "") }));
+        const assignmentLabels = assignments.map(item => [item.role, item.committee].filter(Boolean).join(" · ")).filter(Boolean);
+        [[name, member.fullName, 162.06, 10], [code, documentText, 173.56, 8]].forEach(([node, value, y, baseSize]) => {
           node.textContent = value;
           node.removeAttribute("transform");
           node.setAttribute("x", "77.955");
           node.setAttribute("y", String(y));
           node.setAttribute("text-anchor", "middle");
           node.style.fontSize = `${Math.min(baseSize, Math.max(6, 145 / (String(value).length * .58)))}px`;
+        });
+
+        // Keep each role with its committee; wrap long names inside the card.
+        let assignmentSize = 9, assignmentLines;
+        do {
+          const maxChars = Math.max(12, Math.floor(137 / (assignmentSize * .6)));
+          assignmentLines = assignmentLabels.flatMap(label => {
+            const lines = []; let line = "";
+            for (const word of label.match(/\S+/g) || []) {
+              if (line && (line + " " + word).length > maxChars) { lines.push(line); line = ""; }
+              let rest = word;
+              while (rest.length > maxChars) { if (line) { lines.push(line); line = ""; } lines.push(rest.slice(0, maxChars)); rest = rest.slice(maxChars); }
+              line = line ? line + " " + rest : rest;
+            }
+            if (line) lines.push(line);
+            return lines;
+          });
+          if (assignmentLines.length * assignmentSize * 1.2 <= 32 || assignmentSize <= 3) break;
+          assignmentSize -= .5;
+        } while (true);
+        assignmentSize = Math.min(assignmentSize, 32 / Math.max(1, assignmentLines.length) / 1.2);
+        role.textContent = ""; role.removeAttribute("transform");
+        role.setAttribute("text-anchor", "middle"); role.style.fontSize = `${assignmentSize}px`;
+        assignmentLines.forEach((label, index) => {
+          const line = xml.createElementNS(ns, "tspan");
+          line.setAttribute("x", "77.955"); line.setAttribute("y", String(190 + index * assignmentSize * 1.2));
+          line.textContent = label; role.append(line);
         });
 
         const defs = xml.querySelector("defs");
@@ -2334,7 +2365,8 @@ const TYPES = {
         if (!response.ok) throw new Error("No se pudo leer la foto privada del miembro.");
         const card = {
           fullName: member.full_name, memberNumber: member.member_number,
-          churchRole: member.church_role, documentType: member.document_type,
+          churchRole: member.church_role, churchCommittee: member.church_committee,
+          churchAssignments: member.church_assignments, documentType: member.document_type,
           documentNumber: member.document_number, photoDataUrl: await prepareMemberCardPhoto(await response.blob())
         };
         const svg = await membershipCardSvg(card);
@@ -2569,7 +2601,7 @@ const TYPES = {
               if (!response.ok || !result.ok) throw new Error(result.error || "No se pudo completar el registro.");
               if (accountContext) {
                 platform.memberCard = null;
-                view().innerHTML = `<section class="account-panel"><h1>${result.changeRequest ? "Actualización enviada" : "Membresía guardada"}</h1><p>${result.changeRequest ? "Administración revisará los cambios antes de actualizar el registro y el carné oficiales." : "La información quedó guardada correctamente."}</p><a class="primary-link" href="${accountContext.adminMemberId ? "/admin" : "/cuenta/membresia"}">Volver a ${accountContext.adminMemberId ? "administración" : "mi cuenta"}</a></section>`;
+                view().innerHTML = `<section class="account-panel"><h1>${result.changeRequest ? "Actualización enviada" : "Membresía guardada"}</h1><p>${result.changeRequest ? "Administración revisará los cambios antes de actualizar el registro y el carnet oficiales." : "La información quedó guardada correctamente."}</p><a class="primary-link" href="${accountContext.adminMemberId ? "/admin" : "/cuenta/membresia"}">Volver a ${accountContext.adminMemberId ? "administración" : "mi cuenta"}</a></section>`;
                 if (accountContext.adminMemberId) void loadMembershipAdmin();
                 return;
               }
@@ -2578,7 +2610,7 @@ const TYPES = {
                 renderMembershipPage();
                 return;
               }
-              platform.memberCard = { fullName: String(data.get("fullName")).trim(), memberNumber: result.memberNumber, hasChurchRole: hasRole, churchRole: hasRole ? String(data.get("churchRole")).trim() : "", documentType: hasRole ? String(data.get("documentType")) : "", documentNumber: hasRole ? String(data.get("documentNumber")).trim().toUpperCase() : "", photoDataUrl, photoFile: hasRole ? selectedPhoto : null, photoPreparationWarning, svgUrl: "" };
+              platform.memberCard = { fullName: String(data.get("fullName")).trim(), memberNumber: result.memberNumber, hasChurchRole: hasRole, churchRole: hasRole ? String(data.get("churchRole")).trim() : "", churchCommittee: hasRole ? String(data.get("churchCommittee")).trim() : "", churchAssignments: assignments, documentType: hasRole ? String(data.get("documentType")) : "", documentNumber: hasRole ? String(data.get("documentNumber")).trim().toUpperCase() : "", photoDataUrl, photoFile: hasRole ? selectedPhoto : null, photoPreparationWarning, svgUrl: "" };
               if (hasRole && photoDataUrl) { try { await prepareMemberCardPreview(platform.memberCard); } catch (error) { platform.memberCard.photoPreparationWarning = "Tu registro sí se guardó. No se pudo mostrar el carnet aquí; la foto quedó almacenada para administración."; console.warn("El carnet se podrá volver a generar desde el botón de descarga.", error); } }
               renderMembershipPage();
             } catch (error) { status.textContent = error.message || "No se pudo enviar el formulario. Inténtalo de nuevo."; submit.disabled = false; }
@@ -5501,7 +5533,7 @@ const TYPES = {
         const users = platform.memberAccounts || [], members = platform.members || [];
         return `<details class="member-directory-folder"><summary>Gestión de usuarios <span>${users.length}</span></summary><p>Una cuenta por persona. Revisa la identidad antes de vincular un registro anterior; los permisos de equipo se administran en las herramientas existentes.</p><div class="account-user-list">${users.map(account=>{
           const member=members.find(item=>item.auth_user_id===account.id);
-          return `<article class="account-user-row" data-account-id="${escapeHtml(account.id)}"><strong>${escapeHtml(account.display_name || account.email)}</strong><small>${escapeHtml(account.email)} · ${account.email_verified ? "Correo verificado" : "Sin verificar"}</small><small>ID: ${escapeHtml(account.id)} · accesos: ${escapeHtml(account.providers.join(" · "))}</small><small>Último acceso: ${escapeHtml(account.last_sign_in_at ? new Date(account.last_sign_in_at).toLocaleString("es-CO") : "Sin acceso")}</small>${member?`<small>Membresía: ${escapeHtml(member.full_name)} · ${escapeHtml(member.status)} · ${member.has_church_role ? "Servidor" : "Miembro"}</small><small>Comité: ${escapeHtml(member.church_committee || "Sin comité")} · cargo: ${escapeHtml(member.church_role || "Sin cargo")} · carné: ${member.has_church_role&&member.photo_path ? (member.status==="activo"?"Disponible":"Pendiente de activación") : "Sin generar"}</small>`:`<div class="account-admin-link"><select aria-label="Membresía para vincular con ${escapeHtml(account.email)}"><option value="">Selecciona una membresía sin cuenta</option>${members.filter(m=>!m.auth_user_id).map(m=>`<option value="${escapeHtml(m.id)}">${escapeHtml(m.full_name)} · ${escapeHtml(m.member_number)}</option>`).join("")}</select><button type="button" class="small-action" data-account-admin-link ${account.email_verified?"":"disabled"}>Vincular tras revisión</button></div>`}</article>`;
+          return `<article class="account-user-row" data-account-id="${escapeHtml(account.id)}"><strong>${escapeHtml(account.display_name || account.email)}</strong><small>${escapeHtml(account.email)} · ${account.email_verified ? "Correo verificado" : "Sin verificar"}</small><small>ID: ${escapeHtml(account.id)} · accesos: ${escapeHtml(account.providers.join(" · "))}</small><small>Último acceso: ${escapeHtml(account.last_sign_in_at ? new Date(account.last_sign_in_at).toLocaleString("es-CO") : "Sin acceso")}</small>${member?`<small>Membresía: ${escapeHtml(member.full_name)} · ${escapeHtml(member.status)} · ${member.has_church_role ? "Servidor" : "Miembro"}</small><small>Comité: ${escapeHtml(member.church_committee || "Sin comité")} · cargo: ${escapeHtml(member.church_role || "Sin cargo")} · carnet: ${member.has_church_role&&member.photo_path ? (member.status==="activo"?"Disponible":"Pendiente de activación") : "Sin generar"}</small>`:`<div class="account-admin-link"><select aria-label="Membresía para vincular con ${escapeHtml(account.email)}"><option value="">Selecciona una membresía sin cuenta</option>${members.filter(m=>!m.auth_user_id).map(m=>`<option value="${escapeHtml(m.id)}">${escapeHtml(m.full_name)} · ${escapeHtml(m.member_number)}</option>`).join("")}</select><button type="button" class="small-action" data-account-admin-link ${account.email_verified?"":"disabled"}>Vincular tras revisión</button></div>`}</article>`;
         }).join("") || '<p>Todavía no hay cuentas registradas.</p>'}</div></details>`;
       }
 
