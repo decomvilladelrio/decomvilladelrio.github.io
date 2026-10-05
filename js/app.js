@@ -5208,6 +5208,11 @@ const TYPES = {
           const key = dateKey(date);
           const base = DAY_BASE[date.getDay()];
           if (base && !programmedCultos.has(key)) generated.push({ date: key, ...base, time: autoTime({ date: key, type: base.type }) });
+          // Every other Friday, anchored to the first confirmed devotional.
+          const devotionalDays = (Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - Date.UTC(2026, 9, 9)) / 86400000;
+          if (devotionalDays >= 0 && devotionalDays % 14 === 0) generated.push({
+            date: key, type: "oracion", title: "Devocionales por sectores", department: "IPUC Villa del Río", time: "7:00 p. m."
+          });
           date.setDate(date.getDate() + 1);
         }
         const custom = Object.values(APP_STATE.events || {}).filter(event => event.custom && event.date && parseDate(event.date).getFullYear() === year);
