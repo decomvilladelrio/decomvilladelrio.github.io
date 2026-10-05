@@ -5228,7 +5228,7 @@ const TYPES = {
           ...saved,
           department: saved.department || saved.organizer || raw.department || base.organizer || inferOrganizer(base.title),
           place: saved.place || base.place || "IPUC Villa del Rio",
-          time: saved.time || autoTime(base),
+          time: saved.time || raw.time || autoTime(base),
           status: platformStatus({ ...base, ...saved }),
           image: saved.image || base.image || null,
           autoStyle: saved.autoStyle || "automatico",
