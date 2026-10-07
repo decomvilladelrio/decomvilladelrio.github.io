@@ -1304,7 +1304,7 @@ const TYPES = {
       await import("/js/member-profile.js?v=20260930-2");
       await import("/js/decom-store.js?v=20260930-1");
       await import("/js/decom-registration.js?v=20260930-1");
-      await import("/js/user-account.js?v=20261005-comites-1");
+      await import("/js/user-account.js?v=20261007-auth-init-1");
       let accountRecovery = /(?:[#&])type=recovery(?:&|$)/.test(location.hash);
       const accountStyles = document.createElement("link");
       accountStyles.rel = "stylesheet"; accountStyles.href = "/css/user-account.css?v=20261003-1";

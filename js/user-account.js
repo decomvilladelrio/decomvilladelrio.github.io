@@ -40,7 +40,24 @@
     const root=ctx.root;
     root.innerHTML='<section class="account-panel"><p role="status">Abriendo tu cuenta…</p></section>';
     if(!ctx.client){root.innerHTML='<section class="account-panel"><h1>Mi cuenta</h1><p role="status">Conectando con el sistema de cuentas…</p></section>';return;}
-    const {data:{session},error}=await ctx.client.auth.getSession();
+    let sessionResult;
+    let sessionTimer;
+    try {
+      sessionResult = await Promise.race([
+        ctx.client.auth.getSession(),
+        new Promise((_, reject) => { sessionTimer = setTimeout(() => reject(new Error("La verificación está tardando más de lo esperado.")), 8000); })
+      ]);
+    } catch {
+      if(current!==revision)return;
+      if(ctx.recovery || ctx.route.id === "nueva-clave") {
+        root.innerHTML='<section class="account-panel"><h1>Mi cuenta</h1><p role="alert">No pudimos verificar el enlace de recuperación. Vuelve a abrirlo o intenta de nuevo.</p><button class="primary-link" type="button" data-account-retry>Volver a intentar</button></section>';
+        root.querySelector('[data-account-retry]').onclick=()=>render(ctx);
+      } else {
+        await login(ctx,null,current);
+      }
+      return;
+    } finally { clearTimeout(sessionTimer); }
+    const {data:{session},error}=sessionResult;
     if(current!==revision)return;
     if(error || !session || ["crear","recuperar","nueva-clave"].includes(ctx.route.id) || ctx.recovery){await login(ctx,session,current);return;}
     try {
