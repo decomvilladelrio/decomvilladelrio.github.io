@@ -2689,13 +2689,13 @@ const TYPES = {
             setupDecomListener();
             setupPrivateCloudListeners();
             refreshAdminNav();
-          void checkSupabaseStorageAvailability(SUPABASE_CONFIG.storageBucket, "event-media").then(ready => {
-            cloud.storageReady = ready;
-            if (parseRoute().name === "admin") scheduleRouteRender();
-          });
             const route = parseRoute();
             if (route.name === "cuenta" || route.name === "login" || route.name === "lideres") setTimeout(renderRoute, 0);
             else if (route.name === "admin") scheduleRouteRender();
+          });
+          void checkSupabaseStorageAvailability(SUPABASE_CONFIG.storageBucket, "event-media").then(ready => {
+            cloud.storageReady = ready;
+            if (parseRoute().name === "admin") scheduleRouteRender();
           });
           ["events", "announcements", "reflections", "podcasts", "settings"].forEach(collectionName => {
             cloud.unsubscribers.push(supabaseDbAdapter.onSnapshot(collectionName, snapshot => {
