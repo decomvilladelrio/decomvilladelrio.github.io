@@ -2672,6 +2672,7 @@ const TYPES = {
           cloud.ready = true;
           cloud.driveReady = false;
           cloud.error = "";
+          if (["cuenta", "login", "lideres"].includes(parseRoute().name)) setTimeout(renderRoute, 0);
           if (!navigator.onLine && parseRoute().name === "membresia" && parseRoute().id === "decom") {
             // The local vault does not need public feeds, realtime, or API retries.
             cloud.app.auth.stopAutoRefresh();
@@ -2685,13 +2686,13 @@ const TYPES = {
           setupLiveVisitors();
           supabaseAuthAdapter.onAuthStateChanged(cloud.auth, user => {
             cloud.user = user;
+            const route = parseRoute();
+            if (["cuenta", "login", "lideres"].includes(route.name)) setTimeout(renderRoute, 0);
             checkDriveConnection(user);
             setupDecomListener();
             setupPrivateCloudListeners();
             refreshAdminNav();
-            const route = parseRoute();
-            if (route.name === "cuenta" || route.name === "login" || route.name === "lideres") setTimeout(renderRoute, 0);
-            else if (route.name === "admin") scheduleRouteRender();
+            if (route.name === "admin") scheduleRouteRender();
           });
           void checkSupabaseStorageAvailability(SUPABASE_CONFIG.storageBucket, "event-media").then(ready => {
             cloud.storageReady = ready;
