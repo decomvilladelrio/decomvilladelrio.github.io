@@ -1652,6 +1652,10 @@ const TYPES = {
       initializeCloud();
 
       function renderRoute(event) {
+        const requestedRoute = parseRoute();
+        if (requestedRoute.name === "lideres") {
+          view().innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p role="status">Comprobando tu sesión…</p></section>';
+        }
         window.AccountUI.cancel();
         if (event?.type === "hashchange") window.scrollTo({ top: 0, left: 0, behavior: "auto" });
         refreshAdminNav();
@@ -1695,7 +1699,12 @@ const TYPES = {
         }
         else if (route.name === "login") renderPage = renderLoginPage;
         else if (route.name === "lideres") renderPage = renderCommitteePage;
-        renderPage();
+        try { renderPage(); }
+        catch (error) {
+          if (route.name !== "lideres") throw error;
+          console.error("No se pudo renderizar el panel de líderes", error);
+          view().innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p role="alert">No se pudo abrir el panel. Comprueba tu conexión y vuelve a cargar la página.</p><a class="primary-link" href="/cuenta/">Volver a mi cuenta</a></section>';
+        }
         // Membership entrypoints defer the existing Earth module until Home is opened.
         if (route.name === "inicio" && navigator.onLine && !document.querySelector('script[src*="earth-hero.js"]')) {
           void import("/js/earth-hero.js?v=20260913-earth-43").catch(() => {});
