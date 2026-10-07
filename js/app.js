@@ -1648,8 +1648,10 @@ const TYPES = {
         { day: 0, label: "Domingos", time: "10:00 a. m.", title: "Reunión congregacional", note: "Un espacio para encontrarnos como familia IPUC." }
       ];
       if (location.hash.startsWith("#/")) history.replaceState({}, "", location.hash.replace(/^#\/?/, "/") || "/");
-      renderRoute();
+      // Start auth/cloud before route rendering so route-specific UI work cannot
+      // prevent the shared Supabase client from being initialized.
       initializeCloud();
+      renderRoute();
 
       function renderRoute(event) {
         const requestedRoute = parseRoute();
@@ -3381,6 +3383,11 @@ const TYPES = {
         const host = document.createElement("div");
         view().replaceChildren(host);
         if (!cloud.ready) {
+          if (cloud.error) {
+            host.innerHTML = `<section class="account-panel"><h1>Panel de líderes</h1><p role="alert">No se pudo conectar con el sistema de cuentas.</p><p class="account-help">${escapeHtml(cloud.error)}</p><div class="account-actions"><a class="primary-link" href="/cuenta/">Abrir mi cuenta</a><button class="small-action" type="button" data-leader-retry>Reintentar conexión</button></div></section>`;
+            host.querySelector('[data-leader-retry]').onclick = () => location.reload();
+            return;
+          }
           if (window.__ipucAuthStartupFailure) {
             host.innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p role="alert">No pudimos verificar tu sesión. Inicia sesión e inténtalo de nuevo.</p><div class="account-actions"><a class="primary-link" href="/cuenta/">Iniciar sesión</a><button class="small-action" type="button" data-leader-retry>Volver a intentar</button></div></section>';
             host.querySelector('[data-leader-retry]').onclick = () => location.reload();
