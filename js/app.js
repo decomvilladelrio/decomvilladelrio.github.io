@@ -3372,12 +3372,17 @@ const TYPES = {
         const host = document.createElement("div");
         view().replaceChildren(host);
         if (!cloud.ready) {
+          if (window.__ipucAuthStartupFailure) {
+            host.innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p role="alert">No pudimos verificar tu sesión. Inicia sesión e inténtalo de nuevo.</p><div class="account-actions"><a class="primary-link" href="/cuenta/">Iniciar sesión</a><button class="small-action" type="button" data-leader-retry>Volver a intentar</button></div></section>';
+            host.querySelector('[data-leader-retry]').onclick = () => location.reload();
+            return;
+          }
           const startupDeadline = window.__ipucAuthStartupDeadline || (window.__ipucAuthStartupDeadline = Date.now() + 10000);
           host.innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p role="status">Comprobando tu sesión…</p></section>';
           window.setTimeout(() => {
-            if (!host.isConnected || cloud.ready) return;
-            host.innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p role="alert">No pudimos verificar tu sesión. Inicia sesión e inténtalo de nuevo.</p><div class="account-actions"><a class="primary-link" href="/cuenta/">Iniciar sesión</a><button class="small-action" type="button" data-leader-retry>Volver a intentar</button></div></section>';
-            host.querySelector('[data-leader-retry]').onclick = () => location.reload();
+            if (cloud.ready || window.__ipucAuthStartupFailure || parseRoute().name !== "lideres") return;
+            window.__ipucAuthStartupFailure = true;
+            renderRoute();
           }, Math.max(0, startupDeadline - Date.now()));
           return;
         }
