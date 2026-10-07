@@ -3340,11 +3340,12 @@ const TYPES = {
 
       function renderUserAccountPage(accountRoute = parseRoute()) {
         const root = view();
+        const startupDeadline = window.__ipucAuthStartupDeadline || (window.__ipucAuthStartupDeadline = Date.now() + 10000);
         window.setTimeout(() => {
           if (root !== view() || cloud.app) return;
           root.innerHTML = '<section class="account-panel"><h1>Mi cuenta</h1><p role="alert">No se pudo iniciar el sistema de cuentas. Comprueba tu conexión y vuelve a intentarlo.</p><button class="primary-link" type="button" data-account-init-retry>Volver a intentar</button></section>';
           root.querySelector('[data-account-init-retry]').onclick = () => location.reload();
-        }, 10000);
+        }, Math.max(0, startupDeadline - Date.now()));
         window.AccountUI.render({root, client:cloud.app, config:SUPABASE_CONFIG, route:accountRoute,
           recovery:accountRecovery, clearRecovery:()=>{accountRecovery=false;}, lock:()=>window.DecomStore?.lock(),
           navigate:path=>{history.pushState({},"",path);renderRoute();}, cardBlob:membershipCardBlob,
@@ -3371,12 +3372,13 @@ const TYPES = {
         const host = document.createElement("div");
         view().replaceChildren(host);
         if (!cloud.ready) {
+          const startupDeadline = window.__ipucAuthStartupDeadline || (window.__ipucAuthStartupDeadline = Date.now() + 10000);
           host.innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p role="status">Comprobando tu sesión…</p></section>';
           window.setTimeout(() => {
             if (!host.isConnected || cloud.ready) return;
             host.innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p role="alert">No pudimos verificar tu sesión. Inicia sesión e inténtalo de nuevo.</p><div class="account-actions"><a class="primary-link" href="/cuenta/">Iniciar sesión</a><button class="small-action" type="button" data-leader-retry>Volver a intentar</button></div></section>';
             host.querySelector('[data-leader-retry]').onclick = () => location.reload();
-          }, 10000);
+          }, Math.max(0, startupDeadline - Date.now()));
           return;
         }
         if (!cloud.user) { host.innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p>Inicia sesión con tu cuenta habitual.</p><a class="primary-link" href="/cuenta/">Iniciar sesión</a></section>'; return; }
