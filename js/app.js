@@ -1653,6 +1653,15 @@ const TYPES = {
 
       function renderRoute(event) {
         const requestedRoute = parseRoute();
+        if (requestedRoute.name === "lideres" && !cloud.ready && !window.__ipucLeaderStartupTimer) {
+          window.__ipucLeaderStartupTimer = setTimeout(() => {
+            if (cloud.ready || parseRoute().name !== "lideres") return;
+            window.__ipucAuthStartupFailure = true;
+            const routeView = view();
+            if (routeView) routeView.innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p role="alert">No pudimos verificar tu sesión. Inicia sesión e inténtalo de nuevo.</p><div class="account-actions"><a class="primary-link" href="/cuenta/">Iniciar sesión</a><button class="small-action" type="button" data-leader-retry>Volver a intentar</button></div></section>';
+            routeView?.querySelector('[data-leader-retry]')?.addEventListener("click", () => location.reload());
+          }, 10000);
+        }
         if (requestedRoute.name === "lideres") {
           view().innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p role="status">Comprobando tu sesión…</p></section>';
         }
