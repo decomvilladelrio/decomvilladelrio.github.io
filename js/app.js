@@ -2669,7 +2669,7 @@ const TYPES = {
 
       async function initializeCloud() {
         try {
-          await import("/js/vendor/supabase-2.57.4.js");
+          await loadSupabaseSdk();
           const supabase = window.supabase;
           cloud.supabaseModule = supabase;
           cloud.app = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.publishableKey, { auth: { storage: window.AccountUI.storage } });
@@ -2737,6 +2737,33 @@ const TYPES = {
           if (["cuenta", "login"].includes(parseRoute().name)) view().innerHTML = '<section class="account-panel"><h1>Mi cuenta</h1><p role="alert">No se pudo conectar. Comprueba tu conexión y vuelve a cargar la página.</p><button class="primary-link" onclick="location.reload()">Volver a intentar</button></section>';
           else scheduleRouteRender();
         }
+      }
+
+      function loadSupabaseSdk() {
+        if (window.supabase?.createClient) return Promise.resolve();
+        return new Promise((resolve, reject) => {
+          let script = document.querySelector('script[data-ipuc-supabase-sdk]');
+          if (!script) {
+            script = document.createElement("script");
+            script.src = "/js/vendor/supabase-2.57.4.js?v=20261007-auth-init-8";
+            script.async = true;
+            script.dataset.ipucSupabaseSdk = "true";
+            document.head.append(script);
+          }
+          const timeout = window.setTimeout(() => reject(new Error("La carga del SDK de Supabase superó el tiempo límite.")), 12000);
+          const finish = error => {
+            window.clearTimeout(timeout);
+            script.removeEventListener("load", onLoad);
+            script.removeEventListener("error", onError);
+            if (error) reject(error);
+            else resolve();
+          };
+          const onLoad = () => window.supabase?.createClient ? finish() : finish(new Error("El SDK se cargó, pero no expuso createClient."));
+          const onError = () => finish(new Error("No se pudo descargar el SDK de Supabase."));
+          script.addEventListener("load", onLoad, { once: true });
+          script.addEventListener("error", onError, { once: true });
+          if (window.supabase?.createClient) finish();
+        });
       }
 
       const supabaseAuthAdapter = {
