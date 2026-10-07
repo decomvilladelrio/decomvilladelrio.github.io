@@ -1395,6 +1395,7 @@ const TYPES = {
         decomUnsubscribe: null,
         privateUnsubscribers: []
       };
+      let routeRenderQueued = false;
       let liveVisitorsChannel = null;
       const BASE_TIMES = {
         culto: "7:00 p. m.",
@@ -1630,7 +1631,7 @@ const TYPES = {
       });
       window.addEventListener("ipuc-state-updated", renderRoute);
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/service-worker.js?v=20261007-leaders-auth-1", { updateViaCache: "none" }).then(registration => {
+        navigator.serviceWorker.register("/service-worker.js?v=20261007-leaders-auth-2", { updateViaCache: "none" }).then(registration => {
           const activateLeaderUpdate = () => {
             if (parseRoute().name === "lideres" && navigator.serviceWorker.controller && registration.waiting) {
               registration.waiting.postMessage("ACTIVATE_UPDATE");
@@ -2686,8 +2687,7 @@ const TYPES = {
 
       async function initializeCloud() {
         try {
-          await loadSupabaseSdk();
-          const supabase = window.supabase;
+          const supabase = await loadSupabaseSdk();
           cloud.supabaseModule = supabase;
           cloud.app = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.publishableKey, { auth: { storage: window.AccountUI.storage } });
           cloud.auth = cloud.app;
@@ -2757,29 +2757,35 @@ const TYPES = {
       }
 
       function loadSupabaseSdk() {
-        if (window.supabase?.createClient) return Promise.resolve();
+        const getSdk = () => [window.supabase, window.exports?.supabase, window.module?.exports?.supabase]
+          .find(candidate => typeof candidate?.createClient === "function");
+        if (getSdk()) return Promise.resolve(getSdk());
         return new Promise((resolve, reject) => {
           let script = document.querySelector('script[data-ipuc-supabase-sdk]');
+          const shouldAppend = !script;
           if (!script) {
             script = document.createElement("script");
-            script.src = "/js/vendor/supabase-2.57.4.js?v=20261007-auth-init-10";
+            script.src = "/js/vendor/supabase-2.57.4.js?v=20261007-auth-init-11";
             script.async = true;
             script.dataset.ipucSupabaseSdk = "true";
-            document.head.append(script);
           }
-          const timeout = window.setTimeout(() => reject(new Error("La carga del SDK de Supabase superó el tiempo límite.")), 12000);
+          let settled = false;
+          const timeout = window.setTimeout(() => finish(new Error("La carga del SDK de Supabase superó el tiempo límite.")), 12000);
           const finish = error => {
+            if (settled) return;
+            settled = true;
             window.clearTimeout(timeout);
             script.removeEventListener("load", onLoad);
             script.removeEventListener("error", onError);
             if (error) reject(error);
-            else resolve();
+            else resolve(getSdk());
           };
-          const onLoad = () => window.supabase?.createClient ? finish() : finish(new Error("El SDK se cargó, pero no expuso createClient."));
+          const onLoad = () => getSdk() ? finish() : finish(new Error("El SDK se cargó, pero no expuso createClient."));
           const onError = () => finish(new Error("No se pudo descargar el SDK de Supabase."));
           script.addEventListener("load", onLoad, { once: true });
           script.addEventListener("error", onError, { once: true });
-          if (window.supabase?.createClient) finish();
+          if (getSdk()) finish();
+          else if (shouldAppend) document.head.append(script);
         });
       }
 
@@ -3419,9 +3425,32 @@ const TYPES = {
           const normalizedUser = String(user || "").trim().toLowerCase();
           const email = resolveAdminEmail(user) || (normalizedUser.includes("@") ? normalizedUser : "");
           if (!email) {
-           message.textContent = "Escribe un correo autorizado de administrador o líder de comité.";
+          message.textContent = "Escribe un correo autorizado de administrador o líder de comité.";
           return;
         }
+        if (!cloud.enabled || !cloud.ready) {
+          message.textContent = cloud.error || "Supabase no está configurado todavía.";
+          return;
+        }
+        try {
+          submit.disabled = true;
+          submit.textContent = "Verificando…";
+          const result = await cloud.authMod.signInWithEmailAndPassword(cloud.auth, email, pass);
+          if (result?.error) throw result.error;
+          if (!result?.data?.session || !result?.data?.user) throw new Error("No se creó una sesión válida.");
+          cloud.user = result.data.user;
+          setupDecomListener();
+          refreshAdminNav();
+          history.pushState({}, "", "/admin");
+          renderRoute();
+        } catch (error) {
+          message.textContent = firebaseAuthMessage(error);
+          console.warn(error);
+          submit.disabled = false;
+          submit.textContent = "Iniciar sesión";
+        }
+      }
+
       function renderCommitteePage() {
         stopChurchMusic();
         const host = document.createElement("div");
@@ -3451,29 +3480,6 @@ const TYPES = {
           if (host.isConnected) return module.mount(host, { client: cloud.app, user: cloud.user,
             events: () => platformEventsForYear(today.getFullYear()), normalizeCommittee: normalizeCommitteeKey });
         }).catch(() => { if (host.isConnected) host.innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p role="alert">No se pudo abrir el panel. Revisa la conexión y vuelve a intentarlo.</p></section>'; });
-      }
-
-        if (!cloud.enabled || !cloud.ready) {
-          message.textContent = cloud.error || "Supabase no está configurado todavía.";
-          return;
-        }
-        try {
-          submit.disabled = true;
-          submit.textContent = "Verificando…";
-          const result = await cloud.authMod.signInWithEmailAndPassword(cloud.auth, email, pass);
-          if (result?.error) throw result.error;
-          if (!result?.data?.session || !result?.data?.user) throw new Error("No se creó una sesión válida.");
-          cloud.user = result.data.user;
-          setupDecomListener();
-          refreshAdminNav();
-          history.pushState({}, "", "/admin");
-          renderRoute();
-        } catch (error) {
-          message.textContent = firebaseAuthMessage(error);
-          console.warn(error);
-          submit.disabled = false;
-          submit.textContent = "Iniciar sesión";
-        }
       }
 
       function resolveAdminEmail(user) {
@@ -6188,7 +6194,6 @@ const TYPES = {
         return `<div class="empty-state">${escapeHtml(text)}</div>`;
       }
 
-      let routeRenderQueued = false;
       function scheduleRouteRender() {
         if (["membresia", "cuenta", "login"].includes(parseRoute().name)) return;
         if (routeRenderQueued) return;
