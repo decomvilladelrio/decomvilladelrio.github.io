@@ -3339,7 +3339,13 @@ const TYPES = {
       }
 
       function renderUserAccountPage(accountRoute = parseRoute()) {
-        window.AccountUI.render({root:view(), client:cloud.app, config:SUPABASE_CONFIG, route:accountRoute,
+        const root = view();
+        window.setTimeout(() => {
+          if (root !== view() || cloud.app) return;
+          root.innerHTML = '<section class="account-panel"><h1>Mi cuenta</h1><p role="alert">No se pudo iniciar el sistema de cuentas. Comprueba tu conexión y vuelve a intentarlo.</p><button class="primary-link" type="button" data-account-init-retry>Volver a intentar</button></section>';
+          root.querySelector('[data-account-init-retry]').onclick = () => location.reload();
+        }, 10000);
+        window.AccountUI.render({root, client:cloud.app, config:SUPABASE_CONFIG, route:accountRoute,
           recovery:accountRecovery, clearRecovery:()=>{accountRecovery=false;}, lock:()=>window.DecomStore?.lock(),
           navigate:path=>{history.pushState({},"",path);renderRoute();}, cardBlob:membershipCardBlob,
           editForm:(member,initial)=>{platform.memberCard=null;renderMembershipPage(false,{member,initial});}
@@ -3364,7 +3370,15 @@ const TYPES = {
         stopChurchMusic();
         const host = document.createElement("div");
         view().replaceChildren(host);
-        if (!cloud.ready) { host.innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p role="status">Comprobando tu sesión…</p></section>'; return; }
+        if (!cloud.ready) {
+          host.innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p role="status">Comprobando tu sesión…</p></section>';
+          window.setTimeout(() => {
+            if (!host.isConnected || cloud.ready) return;
+            host.innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p role="alert">No pudimos verificar tu sesión. Inicia sesión e inténtalo de nuevo.</p><div class="account-actions"><a class="primary-link" href="/cuenta/">Iniciar sesión</a><button class="small-action" type="button" data-leader-retry>Volver a intentar</button></div></section>';
+            host.querySelector('[data-leader-retry]').onclick = () => location.reload();
+          }, 10000);
+          return;
+        }
         if (!cloud.user) { host.innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p>Inicia sesión con tu cuenta habitual.</p><a class="primary-link" href="/cuenta/">Iniciar sesión</a></section>'; return; }
         import("/js/committee-panel.js?v=20261005-1").then(module => {
           if (host.isConnected) return module.mount(host, { client: cloud.app, user: cloud.user,
