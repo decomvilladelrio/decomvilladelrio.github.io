@@ -1047,15 +1047,13 @@ const TYPES = {
       button.onclick = handler;
       return button;
     }
-    function downloadAsset(asset) {
+    async function downloadAsset(asset) {
       const source = assetSource(asset, "download");
       if (!source) return alert("Este archivo no tiene URL disponible.");
-      const link = document.createElement("a");
-      link.href = source;
-      link.download = asset.name || "archivo";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      try {
+        const downloader = await import("/js/downloads.js?v=20261005-1");
+        await downloader.downloadFile({ ...asset, url: source });
+      } catch (error) { showToast(error.message || "No se pudo descargar. Intenta nuevamente.", "error"); }
     }
 
     function showToast(message, tone) {
@@ -1306,7 +1304,7 @@ const TYPES = {
       await import("/js/member-profile.js?v=20260930-2");
       await import("/js/decom-store.js?v=20260930-1");
       await import("/js/decom-registration.js?v=20260930-1");
-    await import("/js/user-account.js?v=20261003-5");
+      await import("/js/user-account.js?v=20261005-comites-1");
       let accountRecovery = /(?:[#&])type=recovery(?:&|$)/.test(location.hash);
       const accountStyles = document.createElement("link");
       accountStyles.rel = "stylesheet"; accountStyles.href = "/css/user-account.css?v=20261003-1";
@@ -1675,7 +1673,7 @@ const TYPES = {
         document.body.classList.toggle("public-inner-page", route.name !== "inicio" && !["admin", "login"].includes(route.name));
         document.body.classList.toggle("podcast-mode", route.name === "podcast");
         document.body.classList.toggle("account-mode", route.name === "cuenta");
-        const routeTitles = { inicio: "Inicio", calendario: "Cronograma", anuncios: "Anuncios", podcast: "Historias que Edifican", recursos: "Recursos", membresia: "Membresía", cuenta: "Mi cuenta", ubicacion: "Ubicación", admin: "Administración", login: "Iniciar sesión", eventos: "Eventos", archivo: "Archivo" };
+        const routeTitles = { inicio: "Inicio", calendario: "Cronograma", anuncios: "Anuncios", podcast: "Historias que Edifican", recursos: "Recursos", membresia: "Membresía", cuenta: "Mi cuenta", lideres: "Panel de líderes", ubicacion: "Ubicación", admin: "Administración", login: "Iniciar sesión", eventos: "Eventos", archivo: "Archivo" };
         document.title = `${routeTitles[route.name] || "IPUC Villa del Río"} | IPUC Villa del Río`;
         trackLiveVisitorPage();
         updateActiveNavigation(route.name);
@@ -1696,6 +1694,7 @@ const TYPES = {
           else renderPage = cloud.user ? renderRestrictedAdminPage : renderLoginPage;
         }
         else if (route.name === "login") renderPage = renderLoginPage;
+        else if (route.name === "lideres") renderPage = renderCommitteePage;
         renderPage();
         // Membership entrypoints defer the existing Earth module until Home is opened.
         if (route.name === "inicio" && navigator.onLine && !document.querySelector('script[src*="earth-hero.js"]')) {
@@ -1940,7 +1939,7 @@ const TYPES = {
           const related = items.filter(other => other.key !== item.key && (other.category === item.category || other.folderPath === item.folderPath || other.kind.extension === item.kind.extension)).slice(0, 4);
           const media = resourceDetailPreviewMarkup(item);
           const openUrl = item.url || resourceDisplayUrl(item);
-          dialog.querySelector(".resource-detail-content").innerHTML = `<div class="resource-detail-preview">${media}</div><div class="resource-detail-info"><p class="resource-eyebrow">${escapeHtml(resourceCategoryLabel(item.category))} · ${escapeHtml(item.kind.label)}</p><h2 id="resourceDetailTitle">${escapeHtml(resourceNameLabel(item.name))}</h2><p>${escapeHtml(resourceFolderLabel(item.folder || "Biblioteca IPUC"))}</p><dl><div><dt>Formato</dt><dd>${escapeHtml(item.kind.extension.toUpperCase())}</dd></div>${item.size ? `<div><dt>Tamaño</dt><dd>${escapeHtml(humanFileSize(item.size))}</dd></div>` : ""}${item.updatedAt ? `<div><dt>Actualizado</dt><dd>${escapeHtml(formatDateShort(item.updatedAt.slice(0, 10)))}</dd></div>` : ""}<div><dt>Origen</dt><dd>${escapeHtml(item.source || "Banco oficial IPUC")}</dd></div></dl><div class="resource-detail-actions"><a class="resource-detail-primary" href="${escapeHtml(resourceDownloadUrl(item))}" target="_blank" rel="noopener" download>Descargar</a>${openUrl ? `<a class="resource-detail-secondary" href="${escapeHtml(openUrl)}" target="_blank" rel="noopener">Abrir recurso ↗</a>` : ""}</div>${related.length ? `<section class="resource-related"><h3>También puede servirte</h3>${related.map(other => `<button type="button" data-resource-detail="${escapeHtml(other.key)}"><span class="resource-kind resource-kind-${escapeHtml(other.kind.extension)}">${escapeHtml(other.kind.icon)}</span><span><strong>${escapeHtml(resourceNameLabel(other.name))}</strong><small>${escapeHtml(resourceCategoryLabel(other.category))} · ${escapeHtml(other.kind.label)}</small></span></button>`).join("")}</section>` : ""}</div>`;
+          dialog.querySelector(".resource-detail-content").innerHTML = `<div class="resource-detail-preview">${media}</div><div class="resource-detail-info"><p class="resource-eyebrow">${escapeHtml(resourceCategoryLabel(item.category))} · ${escapeHtml(item.kind.label)}</p><h2 id="resourceDetailTitle">${escapeHtml(resourceNameLabel(item.name))}</h2><p>${escapeHtml(resourceFolderLabel(item.folder || "Biblioteca IPUC"))}</p><dl><div><dt>Formato</dt><dd>${escapeHtml(item.kind.extension.toUpperCase())}</dd></div>${item.size ? `<div><dt>Tamaño</dt><dd>${escapeHtml(humanFileSize(item.size))}</dd></div>` : ""}${item.updatedAt ? `<div><dt>Actualizado</dt><dd>${escapeHtml(formatDateShort(item.updatedAt.slice(0, 10)))}</dd></div>` : ""}<div><dt>Origen</dt><dd>${escapeHtml(item.source || "Banco oficial IPUC")}</dd></div></dl><div class="resource-detail-actions"><a class="resource-detail-primary" href="${escapeHtml(resourceDownloadUrl(item))}" data-resource-download="${escapeHtml(item.key)}" download>Descargar</a>${openUrl ? `<a class="resource-detail-secondary" href="${escapeHtml(openUrl)}" target="_blank" rel="noopener">Abrir recurso ↗</a>` : ""}</div>${related.length ? `<section class="resource-related"><h3>También puede servirte</h3>${related.map(other => `<button type="button" data-resource-detail="${escapeHtml(other.key)}"><span class="resource-kind resource-kind-${escapeHtml(other.kind.extension)}">${escapeHtml(other.kind.icon)}</span><span><strong>${escapeHtml(resourceNameLabel(other.name))}</strong><small>${escapeHtml(resourceCategoryLabel(other.category))} · ${escapeHtml(other.kind.label)}</small></span></button>`).join("")}</section>` : ""}</div>`;
           if (!dialog.open) dialog.showModal();
         };
         root.addEventListener("input", event => {
@@ -2172,46 +2171,11 @@ const TYPES = {
       async function downloadResource(item, trigger) {
         const source = resourceDownloadUrl(item);
         if (!source) return showToast("Este recurso no tiene una descarga disponible.", "error");
-        if (item.source === "Google Drive" || item.size > 25 * 1024 * 1024) {
-          window.open(source, "_blank", "noopener,noreferrer");
-          showToast("El archivo se abrirá para su descarga.", "info");
-          return;
-        }
-        const originalLabel = trigger?.textContent || "Descargar";
-        if (trigger) {
-          trigger.classList.add("is-loading");
-          trigger.setAttribute("aria-busy", "true");
-          trigger.textContent = "Preparando…";
-        }
         try {
-          const response = await fetch(source, { mode: "cors", credentials: "omit" });
-          if (!response.ok) throw new Error("No se pudo descargar el recurso");
-          if ((response.headers.get("content-type") || "").toLowerCase().includes("text/html")) throw new Error("El proveedor requiere una descarga directa");
-          const blob = await response.blob();
-          const objectUrl = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = objectUrl;
-          link.download = item.name || "recurso";
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          setTimeout(() => URL.revokeObjectURL(objectUrl), 1200);
-          showToast("La descarga comenzó correctamente.", "success");
+          const downloader = await import("/js/downloads.js?v=20261005-1");
+          await downloader.downloadFile({ ...item, url: source }, trigger);
         } catch (error) {
-          const fallback = document.createElement("a");
-          fallback.href = source;
-          fallback.download = item.name || "recurso";
-          fallback.rel = "noopener";
-          document.body.appendChild(fallback);
-          fallback.click();
-          fallback.remove();
-          showToast("La descarga se está preparando.", "info");
-        } finally {
-          if (trigger) {
-            trigger.classList.remove("is-loading");
-            trigger.removeAttribute("aria-busy");
-            trigger.innerHTML = `${escapeHtml(originalLabel.replace(/↓$/, "").trim() || "Descargar")}<span aria-hidden="true">↓</span>`;
-          }
+          showToast(error.message || "No se pudo descargar el recurso.", "error");
         }
       }
 
@@ -2717,7 +2681,7 @@ const TYPES = {
             setupPrivateCloudListeners();
             refreshAdminNav();
             const route = parseRoute();
-            if (route.name === "cuenta" || route.name === "login") setTimeout(renderRoute, 0);
+            if (route.name === "cuenta" || route.name === "login" || route.name === "lideres") setTimeout(renderRoute, 0);
             else if (route.name === "admin") scheduleRouteRender();
           });
           ["events", "announcements", "reflections", "podcasts", "settings"].forEach(collectionName => {
@@ -3382,6 +3346,18 @@ const TYPES = {
            message.textContent = "Escribe un correo autorizado de administrador o líder de comité.";
           return;
         }
+      function renderCommitteePage() {
+        stopChurchMusic();
+        const host = document.createElement("div");
+        view().replaceChildren(host);
+        if (!cloud.ready) { host.innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p role="status">Comprobando tu sesión…</p></section>'; return; }
+        if (!cloud.user) { host.innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p>Inicia sesión con tu cuenta habitual.</p><a class="primary-link" href="/cuenta/">Iniciar sesión</a></section>'; return; }
+        import("/js/committee-panel.js?v=20261005-1").then(module => {
+          if (host.isConnected) return module.mount(host, { client: cloud.app, user: cloud.user,
+            events: () => platformEventsForYear(today.getFullYear()), normalizeCommittee: normalizeCommitteeKey });
+        }).catch(() => { if (host.isConnected) host.innerHTML = '<section class="account-panel"><h1>Panel de líderes</h1><p role="alert">No se pudo abrir el panel. Revisa la conexión y vuelve a intentarlo.</p></section>'; });
+      }
+
         if (!cloud.enabled || !cloud.ready) {
           message.textContent = cloud.error || "Supabase no está configurado todavía.";
           return;
@@ -3506,7 +3482,7 @@ const TYPES = {
         const leaders = (APP_STATE.committeeLeaders || []).slice().sort((a, b) => committeeDisplay(a.committee).localeCompare(committeeDisplay(b.committee)));
         return `<section class="admin-module" data-admin-module="lideres" ${platform.adminSection === "lideres" ? "" : "hidden"}>
           <article class="content-card glass admin-card-wide leader-admin-module">
-            <div class="section-title"><p class="eyebrow">Accesos privados</p><h2>Líderes por comité</h2><p>Autoriza el correo del líder. La contraseña se crea aparte en Supabase Auth; nunca se guarda aquí.</p></div>
+            <div class="section-title"><p class="eyebrow">Accesos privados</p><h2>Líderes por comité</h2><p>Autoriza el correo verificado del líder. Accederá con su cuenta habitual.</p><a class="primary-link" href="/lideres/">Comités, cargos y permisos</a></div>
             <div class="leader-admin-form form-grid">
               <label class="full">Correo del líder<input id="leaderEmail" type="email" placeholder="ejemplo@correo.com" autocomplete="off"></label>
               <label>Comité<select id="leaderCommittee">${COMMITTEES.filter(([key]) => key !== "ipuc").map(([key, label]) => `<option value="${key}">${escapeHtml(label)}</option>`).join("")}</select></label>
@@ -3557,7 +3533,7 @@ const TYPES = {
         const selected = platform.selectedAdminEvent === "__new__" ? null : platformEventById(platform.selectedAdminEvent);
         const adminEvents = platformEventsForYear(today.getFullYear());
         const pendingEvents = adminEvents.filter(event => parseDate(event.date) >= today && platformStatus(event) !== "Realizado" && platformStatus(event) !== "Cancelado").sort(sortByDate);
-        const allowedAdminSections = new Set(["eventos", "material", "podcast", "anuncios", "reflexiones", "solicitudes", "lideres", "decom", "membresia"]);
+        const allowedAdminSections = new Set(["eventos", "material", "invitaciones", "podcast", "anuncios", "reflexiones", "solicitudes", "lideres", "decom", "membresia"]);
         const activeAdminSection = allowedAdminSections.has(platform.adminSection) ? platform.adminSection : "eventos";
         const moduleVisibility = name => activeAdminSection === name ? "" : "hidden";
         const upcoming = adminEvents.filter(event => parseDate(event.date) >= today).sort((a, b) => parseDate(a.date) - parseDate(b.date))[0];
@@ -3572,7 +3548,7 @@ const TYPES = {
             <article><strong>${APP_STATE.announcements?.length || 0}</strong><span>Anuncios publicados</span></article>
           </section>
           <nav class="admin-tabs glass" aria-label="Módulos de administración">
-            ${[["eventos", "Eventos", "Crear o editar"], ["material", "Material", "Subir archivos"], ["podcast", "Historias que Edifican", "Testimonios y predicas"], ["anuncios", "Anuncios", "Publicar aviso"], ["reflexiones", "Reflexiones", "Mensaje diario"], ["membresia", "Membresía", "Personas y asistencia"], ["solicitudes", "Solicitudes", "Mensajes de líderes"], ["lideres", "Líderes", "Correos autorizados"], ["decom", "DECOM", "Turnos internos"]].map(([key, label, hint]) => `<button type="button" class="admin-tab ${activeAdminSection === key ? "active" : ""}" data-admin-section="${key}"><strong>${label}</strong><span>${hint}</span></button>`).join("")}
+            ${[["eventos", "Eventos", "Crear o editar"], ["material", "Material", "Subir archivos"], ["invitaciones", "Invitaciones y banners", "Descargas por semana"], ["podcast", "Historias que Edifican", "Testimonios y predicas"], ["anuncios", "Anuncios", "Publicar aviso"], ["reflexiones", "Reflexiones", "Mensaje diario"], ["membresia", "Membresía", "Personas y asistencia"], ["solicitudes", "Solicitudes", "Mensajes de líderes"], ["lideres", "Líderes", "Comités y permisos"], ["decom", "DECOM", "Turnos internos"]].map(([key, label, hint]) => `<button type="button" class="admin-tab ${activeAdminSection === key ? "active" : ""}" data-admin-section="${key}"><strong>${label}</strong><span>${hint}</span></button>`).join("")}
           </nav>
           <section class="admin-layout admin-workspace">
             <section class="admin-module" data-admin-module="eventos" ${moduleVisibility("eventos")}>
@@ -3650,9 +3626,14 @@ const TYPES = {
           <section class="admin-layout">
             ${renderDecomPanel(false)}
           </section>
+            <section class="admin-module" data-admin-module="invitaciones" ${moduleVisibility("invitaciones")}><div data-invitation-library></div></section>
         `;
         const logout = view().querySelector("[data-logout]");
         if (logout) logout.onclick = () => signOutAdmin();
+        const library = view().querySelector("[data-invitation-library]");
+        if (activeAdminSection === "invitaciones") import("/js/committee-panel.js?v=20261005-1").then(module => {
+          if (library.isConnected) module.materialLibrary(library, { events: adminEvents, weekly: APP_STATE.weeklySchedule });
+        }).catch(() => { if (library.isConnected) library.textContent = "No se pudo cargar la biblioteca. Vuelve a intentarlo."; });
         bindDecomControls();
       }
 
@@ -5029,10 +5010,10 @@ const TYPES = {
         const committee = normalizeCommitteeKey(document.getElementById("leaderCommittee")?.value);
         if (!email || !email.includes("@")) return alert("Escribe un correo válido para el líder.");
         if (!committee || committee === "ipuc") return alert("Selecciona un comité válido.");
-        const existing = (APP_STATE.committeeLeaders || []).find(item => String(item.email || "").trim().toLowerCase() === email);
-        const id = existing?.id || `leader-${slugify(email)}`;
+        const existing = (APP_STATE.committeeLeaders || []).find(item => String(item.email || "").trim().toLowerCase() === email && item.committee === committee);
+        const id = existing?.id || `leader-${crypto.randomUUID()}`;
         await saveCloudDoc("committeeLeaders", id, { id, email, committee, active: true, createdBy: cloud.user.id });
-        alert("Líder autorizado. Ahora crea o confirma su usuario en Supabase Auth con ese mismo correo.");
+        alert("Cuenta autorizada para este comité. Puede entrar con Google o con su cuenta habitual usando este correo verificado.");
         renderAdminPage();
       }
 
