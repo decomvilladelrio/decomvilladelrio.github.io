@@ -2679,10 +2679,6 @@ const TYPES = {
             return;
           }
           cloud.storageReady = false;
-          void checkSupabaseStorageAvailability(SUPABASE_CONFIG.storageBucket, "event-media").then(ready => {
-            cloud.storageReady = ready;
-            if (parseRoute().name === "admin") scheduleRouteRender();
-          });
           // El bucket privado requiere sesión para consultar su contenido. Su existencia
           // queda garantizada por la migración; el permiso real se valida al cargar.
           cloud.leaderStorageReady = true;
@@ -2693,6 +2689,10 @@ const TYPES = {
             setupDecomListener();
             setupPrivateCloudListeners();
             refreshAdminNav();
+          void checkSupabaseStorageAvailability(SUPABASE_CONFIG.storageBucket, "event-media").then(ready => {
+            cloud.storageReady = ready;
+            if (parseRoute().name === "admin") scheduleRouteRender();
+          });
             const route = parseRoute();
             if (route.name === "cuenta" || route.name === "login" || route.name === "lideres") setTimeout(renderRoute, 0);
             else if (route.name === "admin") scheduleRouteRender();
