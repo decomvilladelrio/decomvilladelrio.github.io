@@ -1629,7 +1629,24 @@ const TYPES = {
         }
       });
       window.addEventListener("ipuc-state-updated", renderRoute);
-      if ("serviceWorker" in navigator) navigator.serviceWorker.register("/service-worker.js?v=20261003-mobile-1").catch(() => {});
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/service-worker.js?v=20261007-leaders-auth-1", { updateViaCache: "none" }).then(registration => {
+          const activateLeaderUpdate = () => {
+            if (parseRoute().name === "lideres" && navigator.serviceWorker.controller && registration.waiting) {
+              registration.waiting.postMessage("ACTIVATE_UPDATE");
+            }
+          };
+          activateLeaderUpdate();
+          registration.addEventListener("updatefound", () => {
+            registration.installing?.addEventListener("statechange", activateLeaderUpdate);
+          });
+          navigator.serviceWorker.addEventListener("controllerchange", () => {
+            if (parseRoute().name !== "lideres" || sessionStorage.getItem("ipuc-leaders-sw-reloaded")) return;
+            sessionStorage.setItem("ipuc-leaders-sw-reloaded", "1");
+            location.reload();
+          });
+        }).catch(() => {});
+      }
       setupSiteLoader();
       setupChurchMusic();
       loadDriveMusic();
@@ -2745,7 +2762,7 @@ const TYPES = {
           let script = document.querySelector('script[data-ipuc-supabase-sdk]');
           if (!script) {
             script = document.createElement("script");
-            script.src = "/js/vendor/supabase-2.57.4.js?v=20261007-auth-init-9";
+            script.src = "/js/vendor/supabase-2.57.4.js?v=20261007-auth-init-10";
             script.async = true;
             script.dataset.ipucSupabaseSdk = "true";
             document.head.append(script);

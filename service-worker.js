@@ -1,7 +1,8 @@
-const CACHE_NAME = "ipuc-villa-del-rio-v114-mobile-install";
-const SHELL = ["/", "/membresia/", "/membresia/decom/", "/manifest.webmanifest", "/membresia/decom/manifest.webmanifest", "/css/styles.css", "/css/modern.css", "/css/platform-runtime.css", "/css/admin.css", "/css/home-hero.css", "/css/podcast.css", "/css/resources.css", "/css/membership-decom.css", "/js/app.js", "/js/member-profile.js", "/js/decom-store.js", "/js/decom-registration.js", "/js/vendor/supabase-2.57.4.js", "/assets/logo.png", "/assets/favicon.png", "/assets/ipuc-villa-del-rio-brand.png", "/assets/historias-que-edifican.png", "/assets/earth/Tierra_Hero_preview.png"];
+const CACHE_NAME = "ipuc-villa-del-rio-v115-leaders-auth";
+const SHELL = ["/", "/membresia/", "/membresia/decom/", "/lideres/", "/manifest.webmanifest", "/membresia/decom/manifest.webmanifest", "/css/styles.css", "/css/modern.css", "/css/platform-runtime.css", "/css/admin.css", "/css/home-hero.css", "/css/podcast.css", "/css/resources.css", "/css/membership-decom.css", "/css/committee-panel.css", "/js/app.js", "/js/member-profile.js", "/js/decom-store.js", "/js/decom-registration.js", "/js/committee-panel.js", "/js/vendor/supabase-2.57.4.js", "/assets/logo.png", "/assets/favicon.png", "/assets/ipuc-villa-del-rio-brand.png", "/assets/historias-que-edifican.png", "/assets/earth/Tierra_Hero_preview.png"];
 const publicAsset = path => /^\/(?:css\/[\w.-]+\.css|js\/(?:[\w.-]+\.js|vendor\/supabase-2\.57\.4\.js))$/.test(path) || SHELL.includes(path);
 SHELL.push("/cuenta/", "/js/user-account.js", "/css/user-account.css");
+SHELL.push("/js/committee-panel.js", "/css/committee-panel.css");
 SHELL.push("/instalar/", "/js/app-install.js", "/css/app-install.css");
 self.addEventListener("install", e => {e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(SHELL)));});
 // Never interrupt a form with a forced worker upgrade.
