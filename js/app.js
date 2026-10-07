@@ -2745,7 +2745,7 @@ const TYPES = {
           let script = document.querySelector('script[data-ipuc-supabase-sdk]');
           if (!script) {
             script = document.createElement("script");
-            script.src = "/js/vendor/supabase-2.57.4.js?v=20261007-auth-init-8";
+            script.src = "/js/vendor/supabase-2.57.4.js?v=20261007-auth-init-9";
             script.async = true;
             script.dataset.ipucSupabaseSdk = "true";
             document.head.append(script);
