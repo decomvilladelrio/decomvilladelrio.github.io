@@ -2678,7 +2678,11 @@ const TYPES = {
             window.addEventListener("online", () => initializeCloud(), { once: true });
             return;
           }
-          cloud.storageReady = await checkSupabaseStorageAvailability(SUPABASE_CONFIG.storageBucket, "event-media");
+          cloud.storageReady = false;
+          void checkSupabaseStorageAvailability(SUPABASE_CONFIG.storageBucket, "event-media").then(ready => {
+            cloud.storageReady = ready;
+            if (parseRoute().name === "admin") scheduleRouteRender();
+          });
           // El bucket privado requiere sesión para consultar su contenido. Su existencia
           // queda garantizada por la migración; el permiso real se valida al cargar.
           cloud.leaderStorageReady = true;
