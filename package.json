@@ -1,0 +1,14 @@
+{
+  "name": "ipuc-villa-del-rio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Herramientas locales para editar el sitio existente de IPUC Villa del Río",
+  "scripts": {
+    "dev": "node scripts/serve.cjs",
+    "start": "npm run dev",
+    "check": "node --check js/app.js && node --check js/user-account.js && node --check js/committee-panel.js && node --check service-worker.js && node --check scripts/serve.cjs",
+    "test": "node tests/devotional-recurrence.cjs && node tests/downloads-regression.cjs && node tests/event-material-regression.cjs",
+    "verify": "npm run check && npm test"
+  },
+  "engines": { "node": ">=18" }
+}

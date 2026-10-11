@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Abrir vista local",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "ipuc-preview",
+        "pattern": { "regexp": "^(.+):(\\d+):(\\d+): (.+)$", "file": 1, "line": 2, "column": 3, "message": 4 },
+        "background": { "activeOnStart": true, "beginsPattern": ".*", "endsPattern": "Vista local: http://127\\.0\\.0\\.1:[0-9]+/" }
+      },
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    { "label": "Comprobar código y pruebas", "type": "shell", "command": "npm run verify", "problemMatcher": [], "group": { "kind": "test", "isDefault": true } }
+  ]
+}

@@ -1,5 +1,7 @@
 # IPUC Villa del Río
 
+Para editar esta copia unificada en VS Code, empieza por [LEEME-PARA-EDITAR.md](LEEME-PARA-EDITAR.md).
+
 Aplicación web pública para consultar cultos, oraciones,
 vigilias, ayunos y eventos de la congregación.
 

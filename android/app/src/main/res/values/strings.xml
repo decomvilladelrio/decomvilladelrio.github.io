@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">IPUC Villa del Río</string>
+    <string name="app_url">https://decomvilladelrio.github.io/</string>
+    <string name="asset_statements">[{\"relation\":[\"delegate_permission/common.handle_all_urls\"],\"target\":{\"namespace\":\"web\",\"site\":\"https://decomvilladelrio.github.io\"}}]</string>
+</resources>

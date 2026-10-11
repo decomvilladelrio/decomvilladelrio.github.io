@@ -1,3 +1,15 @@
 .firebase/
 firebase-debug.log
 node_modules/
+
+# Material local y datos de desarrollo: no publicar ni compartir como código.
+/privado/
+/material-decom/
+/respaldo-desarrollo/
+/output/
+/tmp/
+/supabase/.temp/
+.env
+.env.*
+!.env.example
+*.log

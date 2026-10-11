@@ -1,0 +1,6 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    { "name": "IPUC · Abrir web local", "type": "pwa-chrome", "request": "launch", "url": "http://127.0.0.1:4176/", "webRoot": "${workspaceFolder}", "preLaunchTask": "Abrir vista local" }
+  ]
+}

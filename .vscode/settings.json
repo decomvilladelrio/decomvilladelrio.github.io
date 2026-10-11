@@ -1,0 +1,6 @@
+{
+  "files.encoding": "utf8",
+  "files.exclude": { "**/.git": true, "**/.gradle": true },
+  "search.exclude": { "**/respaldo-desarrollo/**": true, "**/material-decom/**": true, "**/privado/**": true, "**/android/app/build/**": true },
+  "files.watcherExclude": { "**/.git/**": true, "**/material-decom/**": true, "**/android/.gradle/**": true }
+}
