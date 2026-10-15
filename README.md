@@ -32,3 +32,13 @@ Para cargar imágenes, videos, audios y archivos desde Administración debe
 existir un bucket público llamado `event-media` en Supabase. Si el bucket no
 está disponible, la interfaz bloquea las cargas y muestra el motivo sin perder
 los datos del formulario.
+
+## Documentación de mejoras en revisión
+
+- [Manual técnico completo: lenguajes, arquitectura y dónde editar](docs/MANUAL_TECNICO_WEB.md)
+- [Plan de mejoras del portal y la biblioteca de recursos](docs/PLAN_MEJORAS_WEB_Y_BIBLIOTECA.md)
+- [Estado actual de la biblioteca de recursos](docs/ESTADO_RECURSOS_IMPLEMENTACION.md)
+- [Lista de pruebas antes de publicar](docs/PLAN_PRUEBAS_PREPUBLICACION.md)
+
+Estos documentos registran el alcance y el estado real para revisión. La
+biblioteca nueva todavía no está conectada a la página pública ni publicada.

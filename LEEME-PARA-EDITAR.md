@@ -21,6 +21,8 @@ No abras los HTML mediante doble clic: las rutas, módulos y el modo offline nec
 
 ## Dónde editar
 
+- [Manual técnico completo: lenguajes, arquitectura y dónde editar](docs/MANUAL_TECNICO_WEB.md).
+
 - `js/`, `css/`: lógica y apariencia de la web actual.
 - `index.html`, `cuenta/`, `membresia/`, `lideres/`, `recursos/`, `podcast/`, `instalar/`: entradas de las secciones. Otras rutas usan `404.html` y `js/app.js`.
 - `assets/`: imágenes, recursos y archivos estáticos usados por la web.
